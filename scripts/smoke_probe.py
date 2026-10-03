@@ -1,7 +1,10 @@
-"""Bounded, standard-library-only probe of KataGo's JSON analysis interface.
+"""KataGo JSON analysis probe using only the standard library, with bounded execution.
+仅使用 Python 标准库的 KataGo JSON 分析接口探针，执行时间有上限。
 
 Writes only to --output-dir. Never edits the existing engine/model/config/cache.
+仅写入 --output-dir，不修改现有引擎、模型、配置或缓存。
 This is a protocol feasibility check, not an explanation or performance benchmark.
+用于验证接口可行性，不生成棋理解释，也不作为性能基准。
 """
 
 import argparse
@@ -56,7 +59,7 @@ def run(args):
                "limits": {"per_stage_seconds": 40, "overall_seconds": 90,
                           "analysis_deadline_seconds": 82},
                "warnings": [], "stderr": [], "cleanup": {},
-               "configuration_note": "Analysis threads are configured only through numAnalysisThreads=1 in -override-config; the supplied configuration file is not edited."}
+               "configuration_note": "Analysis threads are configured only through numAnalysisThreads=1 in -override-config, which also forces reportAnalysisWinratesAs=BLACK; the supplied configuration file is not edited. 分析线程仅通过 override 配置设置，胜率与目差强制按黑方视角输出，原配置文件不修改。"}
     responses = queue.Queue()
     process = None
     threads = []
@@ -83,6 +86,7 @@ def run(args):
         summary["model_size_bytes"] = Path(args.model).stat().st_size
         summary["model_sha256"] = hashlib.sha256(Path(args.model).read_bytes()).hexdigest()
         override = ("numAnalysisThreads=1,numSearchThreads=4,nnMaxBatchSize=8,nnCacheSizePowerOfTwo=18,"
+                    "reportAnalysisWinratesAs=BLACK,"
                     f"openclTunerFile={args.tuner}")
         command = [str(args.engine), "analysis", "-config", str(args.config),
                    "-model", str(args.model),
@@ -251,27 +255,35 @@ def run(args):
 
 
 def write_report(summary, output_dir):
-    lines = ["# KataGo 解释 Agent：真实接口可行性验证", "",
+    lines = ["# KataGo 解释 Agent：真实接口可行性验证 / KataGo Explainer: Analysis Interface Feasibility", "",
              "本报告只展示真实引擎输出和接口能力，没有调用语言模型，也没有生成或推断棋理。", "",
-             f"状态：{summary['status']}。总耗时：{summary['elapsed_seconds']:.4f} 秒（包括环境查询、启动、搜索和进程清理）。", "",
-             "分析线程只通过 `-override-config` 中的 `numAnalysisThreads=1` 设置，原配置文件保持原样。", "",
-             "## 环境与输入", "",
-             "```text", summary.get("engine_version", {}).get("stdout", "版本查询未完成"),
-             summary.get("gpu", {}).get("stdout", "GPU 查询未完成"), "```", "",
-             f"模型：`{summary['paths']['model']}`。",
-             f"模型 SHA-256：`{summary.get('model_sha256', '未完成')}`。",
-             f"配置：`{summary['paths']['config']}`。",
-             f"只读使用调优缓存：`{summary['paths']['tuner']}`。", "",
-             "19×19，Chinese 规则，贴目 7.5；所有胜率和目差均为黑方视角。",
+             "This report presents actual engine output and interface capabilities. It does not call a language model or generate or infer Go explanations.", "",
+             f"状态 / Status：{summary['status']}。总耗时 / Total elapsed：{summary['elapsed_seconds']:.4f} 秒 / seconds。",
+             "耗时包括环境查询、启动、搜索和进程清理。 / Timing includes environment queries, startup, search, and process cleanup.", "",
+             "分析线程只通过 `-override-config` 中的 `numAnalysisThreads=1` 设置；同一命令级配置使用 `reportAnalysisWinratesAs=BLACK` 强制胜率和目差按黑方视角输出，原配置文件保持原样。", "",
+             "Analysis threads are set only through `numAnalysisThreads=1` in `-override-config`. The same command-line override forces `reportAnalysisWinratesAs=BLACK` so winrates and score leads use Black's perspective; the supplied configuration file is not edited.", "",
+             "## 环境与输入 / Environment and Input", "",
+             "```text", summary.get("engine_version", {}).get("stdout", "版本查询未完成 / Version query unavailable"),
+             summary.get("gpu", {}).get("stdout", "GPU 查询未完成 / GPU query unavailable"), "```", "",
+             f"模型 / Model：`{summary['paths']['model']}`。",
+             f"模型校验值 / Model SHA-256：`{summary.get('model_sha256', '未完成 / unavailable')}`。",
+             f"配置 / Configuration：`{summary['paths']['config']}`。",
+             f"只读使用调优缓存 / Existing tuning file, used read-only：`{summary['paths']['tuner']}`。", "",
+             "19×19，Chinese 规则，贴目 7.5；所有胜率和目差均为黑方视角。", "",
+             "19×19 board, Chinese rules, komi 7.5. All winrates and score leads are reported from Black's perspective.", "",
              "开局：黑 Q16、白 D4、黑 Q4、白 D16、黑 R14、白 C6、黑 F3、白 C14；当前黑方走。", "",
-             "单分析线程、4 搜索线程、最大 batch 8。根搜索 256 visits；取引擎 order=0 与 order=1，分别做 512 visits 的根节点单候选搜索。",
-             "`allowMoves` 的 `untilDepth=1` 只限制当前第一手，后续双方应手正常搜索。两个候选使用独立搜索树，但复用同一引擎的神经网络缓存。", ""]
+             "Opening: B Q16, W D4, B Q4, W D16, B R14, W C6, B F3, W C14. Black is to move.", "",
+             "单分析线程、4 搜索线程、最大 batch 8。根搜索 256 visits；取引擎 order=0 与 order=1，分别做 512 visits 的根节点单候选搜索。", "",
+             "One analysis thread, four search threads, and maximum batch size 8. The root search requests 256 visits; candidates at order=0 and order=1 each receive a separate root-restricted search requesting 512 visits.", "",
+             "`allowMoves` 的 `untilDepth=1` 只限制当前第一手，后续双方应手正常搜索。两个候选使用独立搜索树，但复用同一引擎的神经网络缓存。", "",
+             "With `allowMoves` and `untilDepth=1`, only the first move is restricted; subsequent replies are searched normally. The candidates use separate search trees but share the same engine's neural-network cache.", ""]
     if "error" in summary:
-        lines.extend(["## 已观察到的限制", "", summary["error"], ""])
+        lines.extend(["## 已观察到的限制 / Observed Limitation", "", summary["error"], ""])
     if "root" in summary:
-        lines.extend(["## 原始排序与等预算候选验证", "",
+        lines.extend(["## 原始排序与等预算候选验证 / Original Ranking and Equal Requested Budgets", "",
                       "`order=0` 是引擎给出的第一选择；不可直接定义为原始 winrate 最大的候选。原始根搜索在候选之间分配的 visits 不相等。", "",
-                      "| 手 | 原始 order | 原始 visits | 原始黑胜率 | 原始黑目差 | 独立 visits | 独立黑胜率 | 独立黑目差 |",
+                      "`order=0` identifies the engine's first choice, which is not necessarily the candidate with the highest raw winrate. The original root search allocates unequal visits to candidates.", "",
+                      "| 手 / Move | 原始 order / Original order | 原始 visits / Original visits | 原始黑胜率 / Original Black winrate | 原始黑目差 / Original Black score lead | 独立 visits / Separate visits | 独立黑胜率 / Separate Black winrate | 独立黑目差 / Separate Black score lead |",
                       "|---|---:|---:|---:|---:|---:|---:|---:|"])
         forced_map = {item["move"]: item for item in summary.get("independent_candidates", [])}
         for original in summary["root"]["selected_candidates"]:
@@ -279,7 +291,7 @@ def write_report(summary, output_dir):
             row = (f"| {original['move']} | {original['order']} | {original['visits']} | "
                    f"{original['winrate'] * 100:.4f}% | {original['scoreLead']:.4f} | ")
             row += (f"{forced['visits']} | {forced['winrate'] * 100:.4f}% | {forced['scoreLead']:.4f} |"
-                    if forced else "未完成 | 未完成 | 未完成 |")
+                    if forced else "未完成 / unavailable | 未完成 / unavailable | 未完成 / unavailable |")
             lines.append(row)
         comparison = summary.get("comparison")
         if comparison:
@@ -288,43 +300,66 @@ def write_report(summary, output_dir):
                           f"等预算候选搜索后的黑胜率差 {comparison['forced_first_minus_second_winrate_percentage_points']:.4f} 个百分点。",
                           f"原始黑目差之差 {comparison['original_first_minus_second_scoreLead_points']:.4f} 目；"
                           f"等预算候选搜索后的黑目差之差 {comparison['forced_first_minus_second_scoreLead_points']:.4f} 目。", "",
-                          "这些差异只描述本次低预算搜索结果；不能据此证明最优性、估计置信区间或解释因果棋理。"])
+                          f"Original first choice {comparison['first_move']} minus second choice {comparison['second_move']}:",
+                          f"Original Black winrate difference: {comparison['original_first_minus_second_winrate_percentage_points']:.4f} percentage points; "
+                          f"difference after equal requested search budgets: {comparison['forced_first_minus_second_winrate_percentage_points']:.4f} percentage points.",
+                          f"Original Black score-lead difference: {comparison['original_first_minus_second_scoreLead_points']:.4f} points; "
+                          f"difference after equal requested search budgets: {comparison['forced_first_minus_second_scoreLead_points']:.4f} points.", "",
+                          "这些差异只描述本次低预算搜索结果；不能据此证明最优性、估计置信区间或解释因果棋理。", "",
+                          "These differences describe only this low-budget run. They do not establish optimality, provide confidence intervals, or explain causal Go reasoning."])
         root = summary["root"]
-        lines.extend(["", "## 已实际取得的输出字段", "",
-                      "顶层：`" + "`, `".join(root["top_level_fields"]) + "`。",
-                      "候选：`" + "`, `".join(root["move_info_fields"]) + "`。",
-                      "根局面：`" + "`, `".join(root["root_info_fields"]) + "`。", "",
+        lines.extend(["", "## 已实际取得的输出字段 / Fields Returned by the Engine", "",
+                      "顶层 / Top level：`" + "`, `".join(root["top_level_fields"]) + "`。",
+                      "候选 / Candidate：`" + "`, `".join(root["move_info_fields"]) + "`。",
+                      "根局面 / Root position：`" + "`, `".join(root["root_info_fields"]) + "`。", "",
                       f"目标根预算为 256，本轮实际 rootInfo.visits={root['rootInfo']['visits']}；"
                       "单候选目标预算均为 512。表格记录实际候选 visits，"
-                      "probe_summary.json 也保留了各次实际 rootInfo.visits；请求上限与实际返回值不能直接视为完全相等。",
+                      "probe_summary.json 也保留了各次实际 rootInfo.visits；请求上限与实际返回值不能直接视为完全相等。", "",
+                      f"The requested root budget is 256; this run returned rootInfo.visits={root['rootInfo']['visits']}. "
+                      "Each separate candidate search requests 512 visits. The table reports actual candidate visits, "
+                      "and probe_summary.json retains actual rootInfo.visits for every search. Requested limits and returned visit counts are not necessarily identical.", "",
                       f"policy 长度：{root['policy_length']}（361 个交叉点及 pass）；根 ownership 长度：{root['ownership_length']}。",
-                      f"一选和二选的 ownership 长度：`{json.dumps(root['move_ownership_lengths'], ensure_ascii=False)}`。",
-                      "PV 和 pvVisits 可以提供变化图与逐手搜索支持量；ownership 可以提供黑白归属预测的区域比较。它们还需要规则核验和反事实验证，才能支持自然语言棋理。", ""])
-    lines.extend(["## 测得时长与适用范围", "", "| 阶段 | 秒 |", "|---|---:|"])
+                      f"一选和二选的 ownership 长度：`{json.dumps(root['move_ownership_lengths'], ensure_ascii=False)}`。", "",
+                      f"Policy length: {root['policy_length']} (361 intersections plus pass). Root ownership length: {root['ownership_length']}.",
+                      f"Ownership lengths for the first and second choices: `{json.dumps(root['move_ownership_lengths'], ensure_ascii=False)}`.", "",
+                      "PV 和 pvVisits 可以提供变化图与逐手搜索支持量；ownership 可以提供黑白归属预测的区域比较。它们还需要规则核验和反事实验证，才能支持自然语言棋理。", "",
+                      "PV and pvVisits support variation playback and per-move search evidence; ownership supports comparisons of predicted Black/White ownership by region. Rule checks and counterfactual validation are still needed before these fields can support natural-language Go explanations.", ""])
+    lines.extend(["## 测得时长与适用范围 / Measured Timing and Scope", "", "| 阶段 / Stage | 秒 / Seconds |", "|---|---:|"])
     for stage, elapsed in summary["stage_times_seconds"].items():
         lines.append(f"| {stage} | {elapsed:.4f} |")
     lines.extend(["", "首个阶段包含冷启动；后续阶段复用进程和缓存。这是单个开局局面的接口验证，不能当作产品性能、平均延迟或复杂中盘耗时。",
                   "每阶段最多 40 秒，整体上限 90 秒；不会自动安装、下载或长时间调优。", "",
-                  f"进程清理：`{json.dumps(summary['cleanup'], ensure_ascii=False)}`。",
-                  f"引擎 warning 数量：{len(summary['warnings'])}。Warning 被记录，但不会被误当作最终分析响应。", "",
-                  "## 文件", "",
-                  "- `smoke_probe.py`：标准库探针，可通过 CLI 覆盖引擎、模型、配置、缓存和输出目录。",
-                  "- `probe_input.jsonl`：真实请求；每行一条 JSON。",
-                  "- `probe_output.jsonl`：未经改写的引擎标准输出；每行一条 JSON。",
-                  "- `probe_summary.json`：环境、统计比较、计时、警告及清理状态。", ""])
+                  "The first stage includes a cold startup; later stages reuse the process and cache. This single opening-position interface check is not a measure of product performance, average latency, or complex midgame search time.",
+                  "Each stage has a 40-second limit, within a 90-second overall budget. The probe performs no automatic installation, downloads, or prolonged tuning.", "",
+                  f"进程清理 / Process cleanup：`{json.dumps(summary['cleanup'], ensure_ascii=False)}`。",
+                  f"引擎 warning 数量 / Engine warning count：{len(summary['warnings'])}。",
+                  "Warning 被记录，但不会被误当作最终分析响应。 / Warnings are recorded and are not mistaken for final analysis responses.", "",
+                  "## 文件 / Files", "",
+                  "脚本位于仓库的 `scripts/smoke_probe.py`；本轮生成文件均写入当前 `--output-dir`（默认 `runs/`）。",
+                  "The script is located at `scripts/smoke_probe.py` in the repository. All files generated by this run are written to the current `--output-dir` (default: `runs/`).", "",
+                  f"当前输出目录 / Current output directory：`{output_dir}`。", "",
+                  "- `scripts/smoke_probe.py`：标准库探针；CLI 指定引擎、模型、配置、调优文件和输出目录。 / Standard-library probe; CLI arguments specify the engine, model, configuration, tuning file, and output directory.",
+                  "- 当前输出目录中的 `probe_input.jsonl`：真实请求，每行一条 JSON。 / `probe_input.jsonl` in the current output directory: actual requests, one JSON object per line.",
+                  "- 当前输出目录中的 `probe_output.jsonl`：未经改写的引擎标准输出，每行一条 JSON。 / `probe_output.jsonl` in the current output directory: unchanged engine stdout, one JSON object per line.",
+                  "- 当前输出目录中的 `probe_summary.json`：环境、统计比较、计时、警告及清理状态。 / `probe_summary.json` in the current output directory: environment, comparisons, timing, warnings, and cleanup state.",
+                  "- 当前输出目录中的 `feasibility.md`：本中英双语报告。 / `feasibility.md` in the current output directory: this bilingual Chinese/English report.", ""])
     if summary["stderr"]:
-        lines.extend(["## 引擎 stderr", "", "```text", "\n".join(summary["stderr"]), "```", ""])
+        lines.extend(["## 引擎 stderr / Engine Standard Error", "",
+                      "以下保留引擎原始日志。 / Original engine logs are preserved below.", "",
+                      "```text", "\n".join(summary["stderr"]), "```", ""])
     (output_dir / "feasibility.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--engine", type=Path, required=True, help="Path to the KataGo executable")
-    parser.add_argument("--model", type=Path, required=True, help="Path to the KataGo model")
-    parser.add_argument("--config", type=Path, required=True, help="Path to the analysis configuration")
-    parser.add_argument("--tuner", type=Path, required=True, help="Path to an existing OpenCL tuning file")
+    parser = argparse.ArgumentParser(description=__doc__, add_help=False,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("-h", "--help", action="help", help="Show this help and exit / 显示帮助并退出")
+    parser.add_argument("--engine", type=Path, required=True, help="KataGo executable path / KataGo 引擎路径")
+    parser.add_argument("--model", type=Path, required=True, help="KataGo model path / KataGo 模型路径")
+    parser.add_argument("--config", type=Path, required=True, help="Analysis configuration path / 分析配置路径")
+    parser.add_argument("--tuner", type=Path, required=True, help="Existing OpenCL tuning file path / 现有 OpenCL 调优文件路径")
     parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parents[1] / "runs",
-                        help="Output directory (default: repository/runs)")
+                        help="Output directory (default: repository/runs) / 输出目录（默认：仓库/runs）")
     return run(parser.parse_args())
 
 
