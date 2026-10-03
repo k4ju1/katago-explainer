@@ -1,0 +1,502 @@
+{
+  "status": "success",
+  "timestamp_utc": "2026-10-03T21:50:47.182192+00:00",
+  "purpose": "JSON protocol and evidence-field feasibility; no LLM or Go-reason claims",
+  "paths": {
+    "engine": "<LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\KataGo\\katago.exe",
+    "model": "<LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\models\\b10c384h6nbttflrs.bin.gz",
+    "config": "<LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\KataGo\\analysis_config.cfg",
+    "tuner": "<USER_PROFILE>\\.katrain\\opencltuning\\tune13_gpuNVIDIAGeForceRTX5070LaptopGPU_x19_y19_c384_m192_h32_mv15.txt"
+  },
+  "perspective": "BLACK",
+  "rules": "chinese",
+  "komi": 7.5,
+  "board_size": [
+    19,
+    19
+  ],
+  "moves": [
+    [
+      "B",
+      "Q16"
+    ],
+    [
+      "W",
+      "D4"
+    ],
+    [
+      "B",
+      "Q4"
+    ],
+    [
+      "W",
+      "D16"
+    ],
+    [
+      "B",
+      "R14"
+    ],
+    [
+      "W",
+      "C6"
+    ],
+    [
+      "B",
+      "F3"
+    ],
+    [
+      "W",
+      "C14"
+    ]
+  ],
+  "stage_times_seconds": {
+    "root_including_cold_start": 4.141,
+    "forced_O3": 1.859,
+    "forced_R6": 1.86
+  },
+  "limits": {
+    "per_stage_seconds": 40,
+    "overall_seconds": 90,
+    "analysis_deadline_seconds": 82
+  },
+  "warnings": [],
+  "stderr": [
+    "2026-10-03 17:50:47-0400: Running with following config:",
+    "conservativePass = true",
+    "maxVisits = 500",
+    "nnCacheSizePowerOfTwo = 18",
+    "nnMaxBatchSize = 8",
+    "nnMutexPoolSizePowerOfTwo = 16",
+    "nnRandomize = true",
+    "numAnalysisThreads = 1",
+    "numSearchThreads = 4",
+    "openclTunerFile = <USER_PROFILE>\\.katrain\\opencltuning\\tune13_gpuNVIDIAGeForceRTX5070LaptopGPU_x19_y19_c384_m192_h32_mv15.txt",
+    "reportAnalysisWinratesAs = BLACK",
+    "",
+    "2026-10-03 17:50:47-0400: Analysis Engine starting...",
+    "2026-10-03 17:50:47-0400: KataGo v1.18.1",
+    "2026-10-03 17:50:47-0400: nnRandSeed0 = 3793225005768187687",
+    "2026-10-03 17:50:47-0400: After dedups: nnModelFile0 = <LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\models\\b10c384h6nbttflrs.bin.gz useFP16 auto",
+    "2026-10-03 17:50:47-0400: Initializing neural net buffer to be size 19 * 19 allowing smaller boards",
+    "2026-10-03 17:50:48-0400: Found OpenCL Platform 0: NVIDIA CUDA (NVIDIA Corporation) (OpenCL 3.0 CUDA 13.0.97)",
+    "2026-10-03 17:50:48-0400: Found 1 device(s) on platform 0 with type CPU or GPU or Accelerator",
+    "2026-10-03 17:50:48-0400: Found OpenCL Platform 1: AMD Accelerated Parallel Processing (Advanced Micro Devices, Inc.) (OpenCL 2.1 AMD-APP (3652.0))",
+    "2026-10-03 17:50:48-0400: Found 1 device(s) on platform 1 with type CPU or GPU or Accelerator",
+    "2026-10-03 17:50:48-0400: Found OpenCL Device 0: NVIDIA GeForce RTX 5070 Laptop GPU (NVIDIA Corporation) (score 11000300)",
+    "2026-10-03 17:50:48-0400: Found OpenCL Device 1: gfx1036 (Advanced Micro Devices, Inc.) (score 11000200)",
+    "2026-10-03 17:50:48-0400: Creating context for OpenCL Platform: NVIDIA CUDA (NVIDIA Corporation) (OpenCL 3.0 CUDA 13.0.97)",
+    "2026-10-03 17:50:48-0400: Using OpenCL Device 0: NVIDIA GeForce RTX 5070 Laptop GPU (NVIDIA Corporation) OpenCL 3.0 CUDA (Extensions: cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_khr_fp64 cl_khr_3d_image_writes cl_khr_byte_addressable_store cl_khr_icd cl_khr_gl_sharing cl_nv_compiler_options cl_nv_device_attribute_query cl_nv_pragma_unroll cl_nv_d3d10_sharing cl_khr_d3d10_sharing cl_nv_d3d11_sharing cl_nv_copy_opts cl_nv_create_buffer cl_khr_int64_base_atomics cl_khr_int64_extended_atomics cl_khr_device_uuid cl_khr_pci_bus_info cl_khr_external_semaphore cl_khr_external_memory cl_khr_external_semaphore_win32 cl_khr_external_memory_win32 cl_khr_semaphore)",
+    "2026-10-03 17:50:48-0400: Loaded tuning parameters from: <USER_PROFILE>\\.katrain\\opencltuning\\tune13_gpuNVIDIAGeForceRTX5070LaptopGPU_x19_y19_c384_m192_h32_mv15.txt",
+    "2026-10-03 17:50:50-0400: OpenCL backend thread 0: Model version 15",
+    "2026-10-03 17:50:50-0400: OpenCL backend thread 0: Model name: b10c384h6nbttflrs (nbt transformer, 10545753 params)",
+    "2026-10-03 17:50:50-0400: OpenCL backend thread 0: FP16Storage true FP16Compute false FP16TensorCores true FP16TensorCoresFor1x1 true",
+    "2026-10-03 17:50:50-0400: Loaded config <LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\KataGo\\analysis_config.cfg and/or command-line and query overrides",
+    "2026-10-03 17:50:50-0400: Loaded model <LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\models\\b10c384h6nbttflrs.bin.gz",
+    "2026-10-03 17:50:50-0400: Config override: nnCacheSizePowerOfTwo = 18",
+    "2026-10-03 17:50:50-0400: Config override: nnMaxBatchSize = 8",
+    "2026-10-03 17:50:50-0400: Config override: numAnalysisThreads = 1",
+    "2026-10-03 17:50:50-0400: Config override: numSearchThreads = 4",
+    "2026-10-03 17:50:50-0400: Config override: openclTunerFile = <USER_PROFILE>\\.katrain\\opencltuning\\tune13_gpuNVIDIAGeForceRTX5070LaptopGPU_x19_y19_c384_m192_h32_mv15.txt",
+    "2026-10-03 17:50:50-0400: Analyzing up to 1 positions at a time in parallel",
+    "2026-10-03 17:50:50-0400: Started, ready to begin handling requests",
+    "2026-10-03 17:50:55-0400: <LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\models\\b10c384h6nbttflrs.bin.gz",
+    "2026-10-03 17:50:55-0400: NN rows: 1110",
+    "2026-10-03 17:50:55-0400: NN batches: 557",
+    "2026-10-03 17:50:55-0400: NN avg batch size: 1.99282",
+    "2026-10-03 17:50:55-0400: GPU -1 finishing, processed 1110 rows 557 batches",
+    "2026-10-03 17:50:55-0400: All cleaned up, quitting"
+  ],
+  "cleanup": {
+    "method": "stdin_eof_graceful",
+    "returncode": 0,
+    "process_stopped": true,
+    "reader_threads_stopped": true
+  },
+  "prior_attempt_note": "The first attempt stopped during startup: -analysis-threads duplicated numAnalysisThreads in the supplied config. Fixed by using only numAnalysisThreads=1 in -override-config; original config unchanged. Current status and outputs refer to this corrected run.",
+  "engine_version": {
+    "exit_code": 0,
+    "stdout": "KataGo v1.18.1\nGit revision: 92ee95c0a4b25fec214da00951ab69e97e207729\nCompile Time: Aug 23 2026 23:32:20\nUsing OpenCL backend\nCompiled to support contributing to online distributed selfplay",
+    "stderr": ""
+  },
+  "gpu": {
+    "exit_code": 0,
+    "stdout": "NVIDIA GeForce RTX 5070 Laptop GPU, 8151 MiB, 582.05",
+    "stderr": ""
+  },
+  "model_size_bytes": 38245488,
+  "model_sha256": "0ba27eced5180b3e3d0b898b280c541112989765e789d1eb6cd0d31b2b2c1229",
+  "command": [
+    "<LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\KataGo\\katago.exe",
+    "analysis",
+    "-config",
+    "<LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\KataGo\\analysis_config.cfg",
+    "-model",
+    "<LOCAL_WORKSPACE>\\KaTrain-1.20.0\\KaTrain\\_internal\\katrain\\models\\b10c384h6nbttflrs.bin.gz",
+    "-override-config",
+    "numAnalysisThreads=1,numSearchThreads=4,nnMaxBatchSize=8,nnCacheSizePowerOfTwo=18,openclTunerFile=<USER_PROFILE>\\.katrain\\opencltuning\\tune13_gpuNVIDIAGeForceRTX5070LaptopGPU_x19_y19_c384_m192_h32_mv15.txt"
+  ],
+  "root": {
+    "rootInfo": {
+      "currentPlayer": "B",
+      "rawLead": -0.643299341,
+      "rawNoResultProb": 0.00158553082,
+      "rawScoreSelfplay": -1.24941134,
+      "rawScoreSelfplayStdev": 14.4040623,
+      "rawStScoreError": 0.384588093,
+      "rawStWrError": 0.0234553758,
+      "rawVarTimeLeft": 52.6597481,
+      "rawWinrate": 0.370056435,
+      "scoreLead": -0.805359615,
+      "scoreSelfplay": -1.58305104,
+      "scoreStdev": 13.9310836,
+      "symHash": "047376937DE55BF8B00544CD6DBC04B8",
+      "thisHash": "5C14250DBBDE9F9E3AAD481B2B81F842",
+      "utility": -0.280243323,
+      "visits": 259,
+      "weight": 698.7412530647707,
+      "winrate": 0.362373372
+    },
+    "candidate_count": 12,
+    "selected_candidates": [
+      {
+        "move": "O3",
+        "order": 0,
+        "visits": 84,
+        "edgeVisits": 84,
+        "winrate": 0.36498217,
+        "scoreLead": -0.786854125,
+        "scoreMean": -0.786854125,
+        "scoreStdev": 13.8576571,
+        "utility": -0.273576394,
+        "utilityLcb": -0.290332502,
+        "lcb": 0.358997846,
+        "prior": 0.433463931,
+        "playSelectionValue": 221.143999,
+        "pv": [
+          "O3",
+          "H3",
+          "F17",
+          "P18",
+          "P17",
+          "Q18"
+        ],
+        "pvVisits": [
+          84,
+          21,
+          16,
+          5,
+          2,
+          1
+        ]
+      },
+      {
+        "move": "R6",
+        "order": 1,
+        "visits": 56,
+        "edgeVisits": 56,
+        "winrate": 0.361268542,
+        "scoreLead": -0.811091573,
+        "scoreMean": -0.811091573,
+        "scoreStdev": 14.0920713,
+        "utility": -0.284563349,
+        "utilityLcb": -0.301233126,
+        "lcb": 0.35531505,
+        "prior": 0.225031957,
+        "playSelectionValue": 70.0,
+        "pv": [
+          "R6",
+          "O17",
+          "D3",
+          "C3",
+          "C2",
+          "E3",
+          "D2",
+          "F4",
+          "E2"
+        ],
+        "pvVisits": [
+          56,
+          36,
+          18,
+          17,
+          16,
+          15,
+          14,
+          6,
+          5
+        ]
+      }
+    ],
+    "top_level_fields": [
+      "id",
+      "isDuringSearch",
+      "moveInfos",
+      "ownership",
+      "policy",
+      "rootInfo",
+      "turnNumber"
+    ],
+    "move_info_fields": [
+      "edgeVisits",
+      "edgeWeight",
+      "lcb",
+      "move",
+      "order",
+      "ownership",
+      "playSelectionValue",
+      "prior",
+      "pv",
+      "pvEdgeVisits",
+      "pvVisits",
+      "scoreLead",
+      "scoreMean",
+      "scoreSelfplay",
+      "scoreStdev",
+      "utility",
+      "utilityLcb",
+      "visits",
+      "weight",
+      "winrate"
+    ],
+    "root_info_fields": [
+      "currentPlayer",
+      "rawLead",
+      "rawNoResultProb",
+      "rawScoreSelfplay",
+      "rawScoreSelfplayStdev",
+      "rawStScoreError",
+      "rawStWrError",
+      "rawVarTimeLeft",
+      "rawWinrate",
+      "scoreLead",
+      "scoreSelfplay",
+      "scoreStdev",
+      "symHash",
+      "thisHash",
+      "utility",
+      "visits",
+      "weight",
+      "winrate"
+    ],
+    "policy_length": 362,
+    "ownership_length": 361,
+    "move_ownership_lengths": {
+      "O3": 361,
+      "R6": 361
+    }
+  },
+  "independent_candidates": [
+    {
+      "move": "O3",
+      "original_order": 0,
+      "original": {
+        "move": "O3",
+        "order": 0,
+        "visits": 84,
+        "edgeVisits": 84,
+        "winrate": 0.36498217,
+        "scoreLead": -0.786854125,
+        "scoreMean": -0.786854125,
+        "scoreStdev": 13.8576571,
+        "utility": -0.273576394,
+        "utilityLcb": -0.290332502,
+        "lcb": 0.358997846,
+        "prior": 0.433463931,
+        "playSelectionValue": 221.143999,
+        "pv": [
+          "O3",
+          "H3",
+          "F17",
+          "P18",
+          "P17",
+          "Q18"
+        ],
+        "pvVisits": [
+          84,
+          21,
+          16,
+          5,
+          2,
+          1
+        ]
+      },
+      "forced_rootInfo": {
+        "currentPlayer": "B",
+        "rawLead": -0.643299341,
+        "rawNoResultProb": 0.00158553082,
+        "rawScoreSelfplay": -1.24941134,
+        "rawScoreSelfplayStdev": 14.4040623,
+        "rawStScoreError": 0.384588093,
+        "rawStWrError": 0.0234553758,
+        "rawVarTimeLeft": 52.6597481,
+        "rawWinrate": 0.370056435,
+        "scoreLead": -0.777510725,
+        "scoreSelfplay": -1.53628004,
+        "scoreStdev": 13.8169305,
+        "symHash": "047376937DE55BF8B00544CD6DBC04B8",
+        "thisHash": "5C14250DBBDE9F9E3AAD481B2B81F842",
+        "utility": -0.277009952,
+        "visits": 514,
+        "weight": 1231.889503845405,
+        "winrate": 0.364683907
+      },
+      "forced": {
+        "move": "O3",
+        "order": 0,
+        "visits": 513,
+        "edgeVisits": 513,
+        "winrate": 0.364670889,
+        "scoreLead": -0.777835925,
+        "scoreMean": -0.777835925,
+        "scoreStdev": 13.8154703,
+        "utility": -0.277041613,
+        "utilityLcb": -0.287732206,
+        "lcb": 0.36085282,
+        "prior": 0.433463931,
+        "playSelectionValue": 1228.9118,
+        "pv": [
+          "O3",
+          "H3",
+          "F17",
+          "S5",
+          "S4",
+          "O17",
+          "P17",
+          "O16"
+        ],
+        "pvVisits": [
+          513,
+          103,
+          87,
+          27,
+          12,
+          4,
+          2,
+          1
+        ]
+      },
+      "winrate_change_percentage_points": -0.03112809999999966,
+      "scoreLead_change_points": 0.009018199999999976,
+      "ownership_length": 361
+    },
+    {
+      "move": "R6",
+      "original_order": 1,
+      "original": {
+        "move": "R6",
+        "order": 1,
+        "visits": 56,
+        "edgeVisits": 56,
+        "winrate": 0.361268542,
+        "scoreLead": -0.811091573,
+        "scoreMean": -0.811091573,
+        "scoreStdev": 14.0920713,
+        "utility": -0.284563349,
+        "utilityLcb": -0.301233126,
+        "lcb": 0.35531505,
+        "prior": 0.225031957,
+        "playSelectionValue": 70.0,
+        "pv": [
+          "R6",
+          "O17",
+          "D3",
+          "C3",
+          "C2",
+          "E3",
+          "D2",
+          "F4",
+          "E2"
+        ],
+        "pvVisits": [
+          56,
+          36,
+          18,
+          17,
+          16,
+          15,
+          14,
+          6,
+          5
+        ]
+      },
+      "forced_rootInfo": {
+        "currentPlayer": "B",
+        "rawLead": -0.643299341,
+        "rawNoResultProb": 0.00158553082,
+        "rawScoreSelfplay": -1.24941134,
+        "rawScoreSelfplayStdev": 14.4040623,
+        "rawStScoreError": 0.384588093,
+        "rawStWrError": 0.0234553758,
+        "rawVarTimeLeft": 52.6597481,
+        "rawWinrate": 0.370056435,
+        "scoreLead": -0.880820024,
+        "scoreSelfplay": -1.66605459,
+        "scoreStdev": 14.0237959,
+        "symHash": "047376937DE55BF8B00544CD6DBC04B8",
+        "thisHash": "5C14250DBBDE9F9E3AAD481B2B81F842",
+        "utility": -0.298643259,
+        "visits": 515,
+        "weight": 1321.3649845680393,
+        "winrate": 0.356103788
+      },
+      "forced": {
+        "move": "R6",
+        "order": 0,
+        "visits": 513,
+        "edgeVisits": 514,
+        "winrate": 0.356072275,
+        "scoreLead": -0.881356487,
+        "scoreMean": -0.881356487,
+        "scoreStdev": 14.0229114,
+        "utility": -0.298721632,
+        "utilityLcb": -0.307054728,
+        "lcb": 0.353096169,
+        "prior": 0.225031957,
+        "playSelectionValue": 1318.38728,
+        "pv": [
+          "R6",
+          "O17",
+          "F17",
+          "E17",
+          "F16",
+          "K16",
+          "F13",
+          "D13",
+          "M17"
+        ],
+        "pvVisits": [
+          513,
+          423,
+          171,
+          101,
+          88,
+          65,
+          36,
+          18,
+          14
+        ]
+      },
+      "winrate_change_percentage_points": -0.5196267000000032,
+      "scoreLead_change_points": -0.07026491400000001,
+      "ownership_length": 361
+    }
+  ],
+  "comparison": {
+    "first_move": "O3",
+    "second_move": "R6",
+    "original_first_minus_second_winrate_percentage_points": 0.3713627999999969,
+    "forced_first_minus_second_winrate_percentage_points": 0.8598614000000004,
+    "original_first_minus_second_scoreLead_points": 0.02423744800000005,
+    "forced_first_minus_second_scoreLead_points": 0.10352056200000004,
+    "forced_higher_black_winrate_move": "O3",
+    "note": "Separate search trees with equal maxVisits; shared neural-net cache. Not proof of best move or statistical independence."
+  },
+  "elapsed_seconds": 8.344,
+  "limitations": [
+    "Only one opening position and one low-budget run; not a product latency benchmark.",
+    "First query includes cold engine startup; later queries reuse the process and NN cache.",
+    "Original candidate visits are unequal; raw root candidate values are not equal-budget comparisons.",
+    "Forced root searches restrict only depth 0; subsequent replies remain searched normally.",
+    "No LLM explanations, fabricated Go concepts, calibration claims, or ranking certainty."
+  ]
+}
