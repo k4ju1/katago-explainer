@@ -2,9 +2,11 @@
 
 Updated: 2026-10-03. This plan is designed for an individual developer learning both Go and software development, with the goal of producing a working application and a reproducible evaluation.
 
-[中文方案](PROJECT_PLAN.zh-CN.md) · [Bilingual feasibility report](feasibility.md)
+[中文方案](PROJECT_PLAN.zh-CN.md) · [Usage / 使用说明](USAGE.md) · [Bilingual feasibility report](feasibility.md)
 
 The schedule, dataset sizes, search budgets, and acceptance targets below are proposed starting points. They describe planned work, not implemented features or measured explanation quality. The feasibility report records the interface checks that have actually run.
+
+**Current local MVP:** import an SGF main line, replay legal board positions, choose the recorded move, AI recommendation, or a custom move, and read bilingual template explanations grounded in board facts and candidate searches. Candidate PVs can be replayed; their positions are searched independently to display a curve from the explained player's fixed perspective. See [Usage](USAGE.md) to test it. Deep language-model reasoning, comprehensive claim verification, and a controlled explanation evaluation remain planned work; the roadmap below is a plan, not a record of completed validation.
 
 ## 1. Project goals
 
@@ -66,7 +68,7 @@ A suitable statement is: “In the current search, A avoids the cutting problem 
 
 For a position immediately before move t, the played move is the next actual move in the SGF. Clearly label whether the user is viewing a pre-move analysis or a post-move position.
 
-Keep the README bilingual and maintain complete Chinese and English project plans. The current CLI/report provides bilingual output; the application UI and its language switch are not yet implemented. Future UI labels and explanations should support `zh-CN` and `en`, with a shared glossary for terms such as liberties, atari, ownership prediction, score lead, and principal variation.
+Keep the README bilingual and maintain complete Chinese and English project plans. The local MVP provides bilingual labels and template explanations, alongside the bilingual CLI/report. Further UI and explanation development should keep `zh-CN` and `en` aligned through a shared glossary for terms such as liberties, atari, ownership prediction, score lead, and principal variation.
 
 ### 3.2 Later extensions
 

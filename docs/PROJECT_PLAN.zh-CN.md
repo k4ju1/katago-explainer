@@ -1,10 +1,12 @@
 # KataGo Explainer：项目实施方案
 
-[English](PROJECT_PLAN.md) | 简体中文 | [接口验证 / Verification](feasibility.md)
+[English](PROJECT_PLAN.md) | 简体中文 | [使用说明 / Usage](USAGE.md) | [接口验证 / Verification](feasibility.md)
 
 版本：2026-10-03。面向围棋与开发处于入门阶段的个人开发者，目标是完成可运行、可演示、可评测的围棋解释项目。
 
 这份文档是实施方案，文中的开发周期、数据量、搜索预算和验收数值均为建议起点，不是已实现功能或已测得效果。实际接口测试结果单独记录在同目录 feasibility.md 中。
+
+**当前本地 MVP：**已实现 SGF 主线导入、合法棋盘回放，可选择实战手、AI 推荐手或自定义着法，并阅读结合棋盘事实与候选搜索的中英双语模板讲解。候选变化可以逐步播放，变化中的各局面独立搜索，并按讲解这手的执棋方固定视角显示曲线。测试方法见[使用说明](USAGE.md)。深层语言模型推理、完整主张验证器与受控讲解评测仍在开发计划中；下面的路线图是实施规划，不代表所有能力已完成验证。
 
 ## 1. 项目定位与目标
 
@@ -201,7 +203,9 @@ PV 是搜索提供的代表变化。只有 PV 坐标而没有各节点完整评�
 
 将证据包与文本分开保存。文本可以重写，事实来源不随重写改变。
 
-文档、探针帮助与报告使用中英双语。后续界面和解释增加 `language=zh-CN/en`，两种语言共用同一证据包，坐标、数字、变化和证据级别保持一致；围棋术语以双语术语表统一。当前仅实现文档与探针的双语说明，应用界面仍在开发计划中。
+文档、探针帮助与报告、原生扩展、网页界面和模板讲解已支持中英双语。原生讲解按钮跟随 KaTrain 的界面语言，讲解弹窗提供独立中英切换。两种语言共用同一证据包，坐标、数字、变化和证据级别保持一致；后续语言模型生成与完整主张验证继续沿用这一约束。当前原生使用流程见[KaTrain 集成说明](KATRAIN_PLUGIN.md)。
+
+Documentation, probe help/reports, the native extension, the web interface, and template explanations support Chinese and English. Native buttons follow KaTrain's interface language; the popup has its own language switch. Both languages share the evidence package, coordinates, values, variations, and evidence levels. Future language-model generation and comprehensive claim verification retain this constraint. See the [native integration guide](KATRAIN_PLUGIN.md) for the current workflow.
 
 以下是拟用数据结构，数值和坐标为格式示意，并非实际棋局结论：
 
