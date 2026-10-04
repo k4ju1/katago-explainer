@@ -74,7 +74,6 @@ class JosekiTests(unittest.TestCase):
                  (TRADITIONAL, 6, "反扳", "counter-hane"),
                  (KNIGHT, 5, "并未直接连成", "not directly connected"),
                  (KNIGHT, 6, "紧邻对方", "touches the opposing"),
-                 (KICK, 2, "小飞挂角", "approaches"),
                  (KICK, 3, "占去它的一口气", "removes one of its liberties"),
                  (KICK, 4, "向第四线长出", "toward the fourth line"),
                  (KICK, 5, "空点 D5", "empty point D5"),

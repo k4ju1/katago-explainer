@@ -27,13 +27,21 @@ The saved native-request result explains the played move C8 on a 9×9 board in 1
 
 The two dock buttons follow KaTrain's selected interface language. The popup has a separate Chinese/English switch; changing language retains the same search results, board snapshots, and values.
 
-19 路局面匹配参考目录中的角部前缀时，弹窗增加“定式关联”和专业术语释义：包括名称、本手作用、参考手顺、出处和上下文说明，★ 标注本次讲解手。真实落子顺序与仅有相同棋形的初始摆子分别标注；参考手顺与引擎候选变化分开。当前只收录四类精选前缀，支持旋转、镜像与黑白互换；未匹配时不显示该区块。来源与限制见[定式参考说明](JOSEKI_REFERENCES.md)。
+19 路局面匹配参考目录中的角部手顺时，弹窗增加“定式关联”和专业术语释义：包括名称、本手角色与有条件的目的说明、参考手顺、出处和上下文说明，★ 标注本次讲解手。真实落子顺序与仅有相同棋形的初始摆子分别标注；参考手顺与引擎候选变化分开。当前收录七项精选参考，包括秀策尖、尖顶、托退和芈氏飞刀的一个外扳分支，支持旋转、镜像与黑白互换；未匹配时不显示该区块。来源与限制见[定式参考说明](JOSEKI_REFERENCES.md)。
 
-When a 19×19 position matches a cataloged corner prefix, the popup adds a joseki reference and professional terminology: its name, move role, reference sequence, sources, and context notes. ★ marks the explained move. Actual move order is labeled separately from an equivalent setup diagram; reference sequences stay separate from engine candidate variations. The catalog currently has four curated prefixes, with rotations, reflections, and color reversal. The block is hidden when there is no match. See [Joseki references](JOSEKI_REFERENCES.md) for sources and limits.
+When a 19×19 position matches a cataloged corner sequence, the popup adds a joseki reference and professional terminology: its name, move role and conditional purpose, reference sequence, sources, and context notes. ★ marks the explained move. Actual move order is labeled separately from an equivalent setup diagram; reference sequences stay separate from engine candidate variations. The catalog has seven curated entries, including Shusaku kosumi, kick, attachment and retreat, and one Mi flying dagger outside-hane branch, with rotations, reflections, and color reversal. The block is hidden when there is no match. See [Joseki references](JOSEKI_REFERENCES.md) for sources and limits.
 
 定式测试步骤：在 KaTrain 打开项目的 `examples/joseki-demo.sgf`，前进到第 5 手黑 E3 落下后的节点，再点击“解释刚才一手”。应出现“星位点三三：传统扳长前缀”，E3 以二子头扳的角色给出有条件的作用说明，并显示参考出处与术语。★ 应标在参考第 5 手；第 6、7 手仅是后续参照。本例不要求 E3 成为 KataGo 一选，也不表示这项新增功能已经完成人工原生验收。
 
 For a joseki test, open the project's `examples/joseki-demo.sgf` in KaTrain, advance to the node after move five, Black E3, and click “Explain last move”. Expect the traditional star-point 3-3 prefix, a conditional explanation of E3's hane role at the head of two stones, sources, and terms. ★ should mark reference move five; moves six and seven are later reference steps. The test does not require E3 to be KataGo's first choice and does not constitute completed manual native acceptance of this addition.
+
+其他经典样例：打开 `examples/shusaku-demo.sgf` 后选第 3 手黑 D5；`kick-demo.sgf` 选第 3 手黑 E3；`attach-retreat-demo.sgf` 选第 5 手黑 D3；`mi-flying-dagger-demo.sgf` 选第 17 手黑 G6。每次选中目标手落下后的节点，再点“解释刚才一手”。网页也可通过“经典棋形”下拉框与“定式示例”按钮自动定位。完整测试表见[使用说明](USAGE.md)。芈氏飞刀只覆盖所列外扳分支，征子和全局适用性仍需实际分析。
+
+Other classic samples: select move three, Black D5, in `examples/shusaku-demo.sgf`; move three, Black E3, in `kick-demo.sgf`; move five, Black D3, in `attach-retreat-demo.sgf`; and move seventeen, Black G6, in `mi-flying-dagger-demo.sgf`. Select the node after the target move and click “Explain last move” each time. The web “Classic pattern” dropdown and “Joseki example” button locate these targets automatically. See the full [testing table](USAGE.md). The Mi entry covers only its listed outside-hane branch; ladder and whole-board suitability still require actual analysis.
+
+实际搜索变化的后续手若精确匹配，也可获得自己的角色说明；未走的参考手不作为本局证据。这些新增功能的测试说明与此前提子界面的原生验收记录分开。
+
+Later moves in an actual searched variation can receive their own role explanation if they match exactly; unplayed reference moves are not evidence for this game. These new-feature testing instructions are separate from the earlier native capture-UI acceptance record.
 
 实战手讲解以该着落下前的局面为起点；AI 一选讲解以发起分析时选中的局面为起点。弹窗回放使用这次结果保存的确切棋盘快照；每个节点的曲线值来自该局面的独立搜索，并固定为被讲解着法的执棋方视角。切换 KaTrain 当前节点后，原有结果仍对应发起分析时的局面，应重新发起请求以讲解新局面。
 

@@ -33,21 +33,33 @@ The launcher uses the existing Python runtime and the KaTrain engine/model besid
 
 ## 定式参考与术语 / Joseki references and terminology
 
-直接测试：点击页面上方“定式示例”，再点击“解释这一步”。示例自动选中第 5 手黑 E3 的实战着法，棋盘显示落子前局面；无需另选 AI 一选。分析后应看到“星位点三三：传统扳长前缀”、E3 的二子头扳作用说明、★ 对应的参考手，以及相关术语和出处。引擎仍独立分析候选，可能推荐另一手。
+直接测试：在页面上方的“经典棋形”下拉框选择要测试的类型，首次可选“秀策尖”；点击“定式示例”，再点击“解释这一步”。页面自动选中对应的实战手并显示落子前局面；保持“讲解实战着法”。分析后应看到相应参考名称、有条件的作用说明、★ 对应的参考手、专业术语和出处。引擎仍独立分析候选，可能推荐另一手。
 
-For a direct test, click “Joseki example” at the top, then “Explain this move”. The example automatically selects the fifth recorded move, Black E3, and shows its pre-move position; keep the recorded-move selection. After analysis, expect the traditional star-point 3-3 hane reference, E3's role at the head of two stones, the ★ reference step, related terms, and sources. The engine still analyzes candidates independently and may recommend a different move.
+For a direct test, use the top “Classic pattern” dropdown; “Shusaku diagonal” is a short first example. Click “Joseki example”, then “Explain this move”. The page selects the intended recorded move and its pre-move position automatically; keep the recorded-move selection. After analysis, expect its reference name, conditional purpose text, the ★ reference step, professional terms, and sources. The engine still analyzes candidates independently and may recommend another move.
 
-在 KaTrain 中测试同一功能：打开 `examples/joseki-demo.sgf`，前进至第 5 手黑 E3 落下后的节点，再点击“解释刚才一手”。扩展会自动回到落子前局面分析；不要前进到文件末尾的第 7 手后才发起本例请求。原生集成步骤见 [KaTrain 原生说明](KATRAIN_PLUGIN.md)。
+在 KaTrain 中测试：打开下表对应的 SGF，前进至目标手落下后的节点，再点击“解释刚才一手”。扩展自动从该手落下前的局面分析；目标手数不一定是文件的最后一手。原生集成步骤见 [KaTrain 原生说明](KATRAIN_PLUGIN.md)。
 
-To test the same feature in KaTrain, open `examples/joseki-demo.sgf`, advance to the node after the fifth move, Black E3, and click “Explain last move”. The extension analyzes its pre-move position automatically; do not advance to the file's final seventh move before this request. See the [native guide](KATRAIN_PLUGIN.md) for integration steps.
+In KaTrain, open the SGF below, advance to the node after the target move, and click “Explain last move”. The extension analyzes the position before that move automatically; the target is not always the final move in the file. See the [native guide](KATRAIN_PLUGIN.md) for integration steps.
+
+| 样例 / Sample | 文件 / File | 目标节点 / Target node | 应核对的内容 / Expected reference |
+| --- | --- | --- | --- |
+| 秀策尖 / Shusaku kosumi | [`shusaku-demo.sgf`](../examples/shusaku-demo.sgf) | 第 3 手黑 D5 / Black D5, move 3 | 小目挂角后的尖；不要与尖顶混称。 / Diagonal response to a 3-4 approach, distinct from a kick. |
+| 尖顶定式 / Kick | [`kick-demo.sgf`](../examples/kick-demo.sgf) | 第 3 手黑 E3 / Black E3, move 3 | 星位小飞挂角代表线中的尖顶。 / Kick in the representative star-point low-approach line. |
+| 托退定式 / Attachment and retreat | [`attach-retreat-demo.sgf`](../examples/attach-retreat-demo.sgf) | 第 5 手黑 D3 / Black D3, move 5 | 托、扳后退回；后续分支仍需具体判断。 / Retreat after attachment and hane; later branches depend on context. |
+| 芈氏飞刀：外扳分支入口 / Mi flying dagger: outside-hane branch entry | [`mi-flying-dagger-demo.sgf`](../examples/mi-flying-dagger-demo.sgf) | 第 17 手黑 G6 / Black G6, move 17 | 所收录外扳分支入口；第 13 手的尖入只是中间步骤。 / The stored outside-hane branch entry; the move-13 diagonal entry is an intermediate step. |
+| 传统点三三 / Traditional 3-3 | [`joseki-demo.sgf`](../examples/joseki-demo.sgf) | 第 5 手黑 E3 / Black E3, move 5 | 二子头扳与参考说明。 / Hane at the head of two stones and reference text. |
+
+芈氏飞刀样例只测试这个 17 手分支的识别，不能把匹配理解为征子有利、必然做活或当前最优。秀策尖只命名这段局部应对，不表示工具已经识别完整秀策流布局。以上步骤不等于新增原生功能已经完成人工操作验收。
+
+The Mi sample tests recognition of this 17-move branch, not a favorable ladder, guaranteed life, or optimal play. The Shusaku entry names a local response, not a complete Shusaku opening. These steps do not constitute completed manual native acceptance of the additions.
 
 19 路局面中，若正在讲解的一手属于参考目录中的角部手顺前缀，讲解会增加“定式关联”区块：显示定式名称、角部、阶段、关联类型、本手作用、参考手顺、出处与说明。★ 标出正在讲解的一手。中英术语表解释星位、小目、挂角、靠、扳、长、粘、小飞、打吃、气等专业词；显示某个术语不代表工具已经证明该手取得了先手、厚势或做活。
 
 On a 19×19 board, a move matching a cataloged corner-sequence prefix adds a “Joseki reference” block with its name, corner, stage, relation, move role, reference sequence, sources, and notes. ★ marks the move being explained. A bilingual glossary explains Chinese professional terms such as 星位 (star point), 小目 (komoku), 挂角 (approach), 靠 (attachment), 扳 (hane), 长 (extend), 粘 (solid connection), 小飞 (keima), 打吃 (atari), and 气 (liberties). Including a term does not prove that the move gains sente, thickness, or life.
 
-当前仅收录四类精选前缀，支持旋转、镜像和黑白互换，不覆盖全部定式，9、13 路局面也不套用这些 19 路参考。未显示定式关联只表示没有匹配当前目录。真实棋谱的局部落子顺序与初始摆子形成的相同棋形会分别标注；角外脱先、周边配合、征子与全局价值仍需结合实际搜索判断。定式名称不保证当前选择最优。
+当前收录七项精选参考，支持旋转、镜像和黑白互换，不覆盖全部定式，9、13 路局面也不套用这些 19 路参考。未显示定式关联只表示没有匹配当前目录。真实棋谱的局部落子顺序与初始摆子形成的相同棋形会分别标注；角外脱先、周边配合、征子与全局价值仍需结合实际搜索判断。定式名称不保证当前选择最优。
 
-The catalog contains four curated prefixes, with rotations, reflections, and color reversal. It does not cover every joseki, and these 19×19 references are not applied to 9×9 or 13×13 positions. No reference block means no current catalog match. Actual local move order is labeled separately from an equivalent setup diagram. Tenuki, nearby support, ladders, and whole-board value still require the actual search; a joseki name does not establish optimal play.
+The catalog has seven curated entries, with rotations, reflections, and color reversal. It does not cover every joseki, and these 19×19 references are not applied to 9×9 or 13×13 positions. No reference block means no current catalog match. Actual local move order is labeled separately from an equivalent setup diagram. Tenuki, nearby support, ladders, and whole-board value still require the actual search; a joseki name does not establish optimal play.
 
 “定式参考手顺”是带出处的知识参照；候选变化和胜率曲线来自本次 KataGo 搜索。不要把参考中的下一手当作引擎刚刚推荐的应手，或将曲线数值套到参考手顺。具体收录内容、来源和匹配规则见[定式参考说明](JOSEKI_REFERENCES.md)。
 
@@ -56,6 +68,10 @@ The “joseki reference sequence” is sourced reference material; candidate con
 逐手作用说明按定式角色给出有条件的目的解释，并标为“定式参考”依据。它与可核验的提子、气数等棋盘事实，以及真实搜索中的数值判断，分别显示；不会因为出现“扳”或“拆三”就断言本局已经取得某种收益。
 
 Move-purpose text gives a conditional explanation of a reference role and is labeled as reference evidence. It is separate from checkable captures/liberties and from numerical search judgments; a hane or extension label does not assert a realized benefit in this game.
+
+实际搜索变化里的后续手，也会按累计的真实历史重新匹配自己的角色，例如变化确实走到 E2 时解释反扳；不会借用尚未走出的参考步骤作为本局证据。
+
+Later moves in an actual searched variation can receive their own role match using accumulated history, such as a counter-hane explanation if E2 is actually played; unplayed reference steps are not borrowed as evidence for this game.
 
 ## 如何读数字 / How to read the values
 

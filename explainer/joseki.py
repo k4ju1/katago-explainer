@@ -1,4 +1,4 @@
-"""Conservative recognition of four sourced 19x19 corner prefixes.
+"""Conservative recognition of sourced 19x19 corner reference sequences.
 
 This is a small teaching catalogue, not a joseki solver. It recognises exact
 local stones and, when supplied, local move order. Setup diagrams without a
@@ -26,6 +26,22 @@ class _Prefix:
     source_title: tuple[str, str]
     source_url: str
     term_ids: tuple[str, ...]
+    recognize_from: int = 2
+    purposes: tuple[tuple[int, str, str], ...] = ()
+    context_notes: tuple[tuple[str, str], ...] = ()
+    extra_sources: tuple[tuple[str, str, str], ...] = ()
+
+
+def _moves(vertices, roles):
+    """Convert auditable lower-left GTP sequences; Black starts, colors alternate."""
+    vertices = vertices.split()
+    if len(vertices) != len(roles):
+        raise ValueError('Every reference move needs a bilingual role.')
+    result = []
+    for index, (vertex, role) in enumerate(zip(vertices, roles)):
+        x, y = vertex_to_point(vertex, 19)
+        result.append(('B' if index % 2 == 0 else 'W', x + 1, 19 - y, *role))
+    return tuple(result)
 
 
 _PREFIXES = (
@@ -64,8 +80,8 @@ _PREFIXES = (
     # Source numeric (x,y) transforms to canonical (20-y,20-x).
     _Prefix(
         "star-approach-kick",
-        ("星位小飞挂角：尖顶、一间跳与拆三前缀",
-         "Star-point low approach: kick, one-space jump and extension prefix"),
+        ("尖顶定式：星位小飞挂角代表线",
+         "Kick joseki: star-point low-approach reference line"),
         (("B", 4, 4, "星位占角", "Corner star point"),
          ("W", 6, 3, "小飞挂角", "Low knight approach"),
          ("B", 5, 3, "尖顶", "Kick (diagonal attachment)"),
@@ -77,6 +93,7 @@ _PREFIXES = (
          "OGS Joseki Explorer: Cho Hunhyun, Lectures on Go Techniques"),
         "https://online-go.com/joseki/17781",
         ("joseki", "star_point", "approach", "keima", "kick", "extend", "jump", "three_space_extension"),
+        recognize_from=3,
     ),
     # BGA diagram 2, read directly from the HTML grid: B C4, W E3.
     _Prefix(
@@ -89,6 +106,83 @@ _PREFIXES = (
          "British Go Association: Even Game Joseki, Part 1 (diagram 2)"),
         "https://britgo.org/bgj/00221.html",
         ("joseki", "komoku", "approach", "keima"),
+    ),
+    # Nihon Ki-in diagram 1: local B R16,W P17,B Q15, rotated 180 degrees.
+    _Prefix(
+        'komoku-shusaku-kosumi',
+        ('秀策尖：小目小飞挂角后的尖应法', 'Shusaku kosumi: diagonal response to a 3-4 low approach'),
+        _moves('C4 E3 D5', (('小目占角', '3-4 corner point'), ('小飞挂角', 'Low knight approach'),
+                            ('秀策尖', 'Shusaku kosumi'))),
+        8,
+        ('日本棋院：寺山怜的古棋探访，图1', 'Nihon Ki-in: Rei Terayama on historical Go, diagram 1'),
+        'https://www.nihonkiin.or.jp/etc/writer/column20250630.html',
+        ('joseki', 'shusaku_kosumi', 'komoku', 'approach', 'keima', 'diagonal'),
+        recognize_from=3,
+        purposes=((3,
+            '{m3} 与己方小目 {m1} 成尖形，朝外侧补一子，同时照应角上；它没有直接贴住对方 {m2}，区别于尖顶。这个秀策尖可用于兼顾角部联络和外侧发展，是否合局仍需看贴目、全盘配置和实际应手。',
+            '{m3} is diagonal to the friendly 3-4 stone at {m1}, developing outward while supporting the corner; it does not touch the opposing stone at {m2}, unlike a kick. This Shusaku kosumi can balance corner support and outside development; its value depends on komi, the full board, and actual replies.'),),
+        context_notes=(('秀策尖是命名应手，本项识别局部三手；不据此认定全盘正在使用秀策流，也不把历史无贴目条件套到本局。',
+                        'Shusaku kosumi is a named response. This entry recognizes three local moves, not an entire Shusaku opening, and does not transfer historical no-komi assumptions to this game.'),),
+        extra_sources=(('英国围棋协会：British Go Journal 105，图16', 'British Go Association: British Go Journal 105, diagram 16',
+                        'https://www.britgo.org/files/bgj/bgj105.pdf'),),
+    ),
+    # Pandanet diagram 3: R16,P16,P17,O17,Q17,O16,R14,K17, rotated 180 degrees.
+    _Prefix(
+        'komoku-high-approach-attach-retreat',
+        ('托退定式：实粘低拆分支', 'Attachment-and-retreat joseki: solid connection and low extension'),
+        _moves('C4 E4 E3 F3 D3 F4 C6 K3',
+               (('小目占角', '3-4 corner point'), ('一间高挂', 'One-space high approach'),
+                ('托', 'Attachment underneath'), ('扳', 'Hane'), ('退', 'Retreat'),
+                ('实粘', 'Solid connection'), ('拆一（一间跳）', 'One-space extension'),
+                ('低拆三', 'Low three-space extension'))),
+        11,
+        ('Pandanet：小目一间高挂托退，图3', 'Pandanet: 3-4 high approach, attachment and retreat, diagram 3'),
+        'https://www.pandanet.co.jp/igonyumon/11-05.htm',
+        ('joseki', 'attach_retreat', 'komoku', 'approach', 'high_approach', 'attach_under',
+         'hane', 'retreat', 'connect', 'diagonal', 'jump', 'three_space_extension'),
+        recognize_from=5,
+        purposes=(
+            (5, '{m5} 从托子 {m3} 向小目 {m1} 的方向退，直接接住托子，并与小目成尖形；托子和小目仍未直接连成一块。从这手起，「托—扳—退」分支已经出现，可作为兼顾角部与外侧交涉的一种处理。',
+                '{m5} retreats from the attached stone at {m3} toward {m1}, connecting directly to the attachment and diagonally to the 3-4 stone; the corner stone is not yet directly connected. This confirms the attachment-hane-retreat branch, one way to handle the corner and outside interaction.'),
+            (6, '{m6} 实粘，把挂角子 {m2} 和扳子 {m4} 直接连成一块，补上两子之间的直接断点。虎接是另一分支；本手采用直接连接，后续拆边方向仍要看全局。',
+                '{m6} solidly connects the approaching stone at {m2} to the hane at {m4}, joining the chains and filling their immediate cutting point. A hanging connection is another branch; the side-extension direction still depends on the full board.'),
+            (7, '{m7} 与己方小目 {m1} 之间隔一个空点，沿邻边拆一（一间跳），为角部棋子提供展开空间。中间空点仍存在，不能仅凭这个定式名称认定棋块已活或已直接连接。',
+                '{m7} is a one-space extension from {m1} along the adjacent side, leaving one empty intersection and room to develop. The gap remains; the joseki name does not establish life or a direct connection.'),
+            (8, '{m8} 从已相连的外侧棋子沿三路低拆三，与 {m4} 留三个空点，拓展沿边活动空间。是否照搬这一落点，要结合边上配合子、对方侵入和全盘急所判断。',
+                '{m8} makes a low third-line extension from the connected outside stones, leaving three empty points from {m4} and expanding room along the side. Its placement depends on support stones, invasions, and urgent whole-board moves.'),
+        ),
+        context_notes=(('仅收录实粘、拆一和低拆三代表线；虎接、高拆、脱先及后续侵入属于其他分支。',
+                        'This reference covers solid connection, a one-space extension, and a low extension; hanging connection, high extension, tenuki, and later invasions are other branches.'),),
+        extra_sources=(('日本棋院：19路盘初学者教材，图4', 'Nihon Ki-in: 19-line beginner guide, diagram 4',
+                        'https://www.nihonkiin.or.jp/member/pdf/5-4_igoshoshin_1_19ro.pdf'),),
+    ),
+    # Lu Ke diagrams 1 + 2; Mi Yuting's commentary independently distinguishes the outward hane.
+    _Prefix(
+        'star-33-mi-flying-dagger',
+        ('芈氏飞刀：外扳分支入口', "Mi's Flying Dagger: outward-hane branch entry"),
+        _moves('D4 C3 D3 C4 C6 B6 B7 C5 D6 D5 E5 E4 E2 F4 F5 G5 G6',
+               (('星位占角', 'Corner star point'), ('点三三', '3-3 invasion'), ('挡', 'Block'),
+                ('长', 'Extend'), ('小飞', 'Small knight move'), ('二路托', 'Second-line attachment'),
+                ('扳', 'Hane'), ('断', 'Cut'), ('长', 'Extend'), ('顶', 'Push'), ('扳', 'Hane'),
+                ('断', 'Cut'), ('尖入', 'Diagonal entry'), ('长', 'Extend'), ('顶', 'Push'),
+                ('扳', 'Hane'), ('外扳', 'Outward hane'))),
+        8,
+        ('围棋老师卢珂：芈氏飞刀，图1、图2', "Go teacher Lu Ke: Mi's Flying Dagger, diagrams 1 and 2"),
+        'https://blog.newtonchineseschool.org/luke/2025/01/20/%E8%8A%88%E6%B0%8F%E9%A3%9E%E5%88%80/',
+        ('joseki', 'mi_flying_dagger', 'star_point', 'invasion_33', 'block', 'extend', 'keima',
+         'attach_under', 'hane', 'counter_hane', 'cut', 'push', 'diagonal', 'liberties', 'ladder'),
+        recognize_from=17,
+        purposes=((17,
+            '{m17} 从己方 {m15} 绕到对方 {m16} 外侧，是回应对方扳的外扳；此前 {m13} 的尖入使局部进入飞刀相关变化。这一手选择继续接触战，可限制对方从 {m16} 直接长向 {m17}，后续必须计算断点、气数与征子，实际优劣仍以本局补搜为准。',
+            '{m17} bends from the friendly stone at {m15} around {m16}, answering the opposing hane with an outward hane. The earlier diagonal entry at {m13} leads into the related Flying Dagger variations. This chooses continued contact fighting and can check a direct extension from {m16} to {m17}; cuts, liberties, and ladders still require reading in the actual position.'),),
+        context_notes=(
+            ('第12手断的可行性涉及征子条件，必须结合全盘征子方向与引征子判断；本项不自动判定征子有利。',
+             'The cut at local move 12 involves ladder conditions. Check the whole-board ladder and breakers; this entry does not establish a favorable ladder.'),
+            ('这里只收录外扳分支入口，从第17手外扳起才命名此分支；小飞、二路托或尖入的共享开头不会提前命名为已选外扳。',
+             'Only this outward-hane branch entry is cataloged, with recognition starting at move 17. Shared knight-move, attachment, or diagonal-entry openings do not establish that this later branch was chosen.'),
+        ),
+        extra_sources=(('芈昱廷九段讲解、若水撰文：《芈式飞刀》，图十七', "Mi Yuting 9p commentary, Ruoshui text: Mi's Flying Dagger, diagram 17",
+                        'https://ks3-cn-beijing.ksyun.com/attachment/fe692f120e2d926b033c440696074ee4'),),
     ),
 )
 
@@ -166,6 +260,10 @@ def _move_explanation(prefix: _Prefix, reference: list[dict], count: int) -> dic
     def at(ply):
         return reference[ply - 1]["move"]
 
+    coordinates = {f'm{step["ply"]}': step['move'] for step in reference}
+    for ply, zh, en in prefix.purposes:
+        if ply == count:
+            return _bi(zh.format_map(coordinates), en.format_map(coordinates))
     selected, seed = at(count), at(1)
     if prefix.id.startswith("star-33"):
         if count == 2:
@@ -293,6 +391,7 @@ def _entry(prefix, symmetry, swapped, count, relation):
         _bi("不据此前缀判断征子、死活、先手或最终实地。",
             "This prefix does not establish ladder outcomes, life and death, sente, or final territory."),
     ]
+    notes.extend(_bi(zh, en) for zh, en in prefix.context_notes)
     if count < len(reference):
         notes.insert(0, _bi(
             "后续未走步骤只是参考；尚未选择该后续分支，也不是本局预测变化。",
@@ -307,7 +406,8 @@ def _entry(prefix, symmetry, swapped, count, relation):
         "move_role": dict(reference[count - 1]["role"]),
         "move_explanation": _move_explanation(prefix, reference, count),
         "reference_line": reference,
-        "sources": [{"title": _bi(*prefix.source_title), "url": prefix.source_url}],
+        "sources": [{"title": _bi(*prefix.source_title), "url": prefix.source_url}] + [
+            {"title": _bi(zh, en), "url": url} for zh, en, url in prefix.extra_sources],
         "notes": notes,
         "term_ids": list(prefix.term_ids),
     }
@@ -349,7 +449,7 @@ def find_joseki(before: Board, player: str, move: str, history=None) -> list[dic
                 local_after = {point: actor for point, actor in after.cells.items()
                                if _inside(point, symmetry, prefix.guard)}
                 # A selected seed stone is not enough to identify a joseki.
-                for count in range(len(line), 1, -1):
+                for count in range(len(line), prefix.recognize_from - 1, -1):
                     if line[count - 1] != (player, selected):
                         continue
                     expected_before = {point: actor for actor, point in line[:count - 1]}

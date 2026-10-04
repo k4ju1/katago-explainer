@@ -20,9 +20,9 @@ Documentation, the review interface, explanations, and probe reports support Chi
 
 **当前阶段：可运行的本机着法讲解原型。** 可导入 SGF，讲解实战手或 AI 推荐，逐步播放变化并查看重新评估的胜率。当前讲解使用可核验棋盘事实和证据模板；语言模型推理、完整主张验证器与专家评测仍需继续开发。
 
-The current reference layer recognizes four curated corner-sequence prefixes on 19×19 boards, with rotations, reflections, and color reversal. A matching result adds a bilingual name, the move's role, a reference sequence, sources, and context notes. Actual recorded order is distinguished from a matching diagram shape, and reference sequences stay separate from KataGo's searched variations. A Chinese-first bilingual glossary explains terms such as 星位 (star point), 小目 (komoku), 挂角 (approach), 扳 (hane), and 粘 (solid connection). This is a small reference catalog, not a comprehensive joseki database; see [reference coverage and safeguards](docs/JOSEKI_REFERENCES.md).
+The current reference layer has seven curated entries on 19×19 boards, including 秀策尖 (Shusaku kosumi), 尖顶定式 (kick), 托退定式 (attachment and retreat), and one 芈氏飞刀 (Mi flying dagger) outside-hane branch, with rotations, reflections, and color reversal. A matching result adds a bilingual name, the move's role and conditional purpose, a reference sequence, sources, and context notes. Actual recorded order is distinguished from a matching diagram shape, and reference sequences stay separate from KataGo's searched variations. A Chinese-first bilingual glossary explains professional terms. This is a small reference catalog, not a comprehensive joseki database; see [reference coverage and safeguards](docs/JOSEKI_REFERENCES.md).
 
-当前参考层在 19 路棋盘上识别四类精选角部手顺前缀，支持旋转、镜像和黑白互换。匹配后提供中英定式名称、本手作用、参考手顺、出处和适用说明。真实落子顺序与仅有相同棋形的摆子局面分别标注，定式参考手顺与 KataGo 搜索变化分别展示。中英术语表优先使用星位、小目、挂角、扳、粘等中文专业名称。这是小型参考目录，不是完整定式数据库；覆盖范围与核验边界见[定式参考说明](docs/JOSEKI_REFERENCES.md)。
+当前参考层在 19 路棋盘上收录七项精选参考，包括秀策尖、尖顶定式、托退定式和芈氏飞刀的一个外扳分支，支持旋转、镜像和黑白互换。匹配后提供中英定式名称、本手角色及有条件的目的说明、参考手顺、出处和适用说明。真实落子顺序与仅有相同棋形的摆子局面分别标注，定式参考手顺与 KataGo 搜索变化分别展示；中英术语表优先使用中文专业名称。这是小型参考目录，不是完整定式数据库；覆盖范围与核验边界见[定式参考说明](docs/JOSEKI_REFERENCES.md)。
 
 The core has been tested with the real KataGo engine and automated tests. An earlier native build completed a user-assisted acceptance check: the original KaTrain executable opened with the board and two explanation buttons, and a native explanation request displayed an explanation, board, and winrate in the popup. This check does not establish manual acceptance of later additions such as the joseki reference display. The integration targets the pinned KaTrain v1.20.0 Windows folder build and is not an official stable plugin API.
 
@@ -38,9 +38,9 @@ The two dock buttons follow KaTrain's selected interface language. The explanati
 
 右侧两个讲解按钮跟随 KaTrain 当前选择的界面语言。讲解弹窗还提供独立的中英切换，两种语言使用同一搜索证据与数值。
 
-To test the new joseki reference, open [examples/joseki-demo.sgf](examples/joseki-demo.sgf) in KaTrain, advance to the fifth move (Black E3), and click “Explain last move”. The expected reference is “星位点三三：传统扳长前缀”, with E3 marked as a hane at the head of two stones. This is a test workflow for the new feature; the prior native acceptance record covers the earlier capture UI.
+For a first reference test, open [examples/shusaku-demo.sgf](examples/shusaku-demo.sgf) in KaTrain, advance to move three (Black D5), and click “Explain last move”. Expect a 秀策尖 reference with its purpose, sources, and terms. More classic samples and target moves are listed in the [User Guide](docs/USAGE.md). These are test workflows for the new features; the prior native acceptance record covers the earlier capture UI.
 
-测试新增的定式参考时，在 KaTrain 打开 [examples/joseki-demo.sgf](examples/joseki-demo.sgf)，前进到第 5 手黑 E3，再点击“解释刚才一手”。应出现“星位点三三：传统扳长前缀”，E3 标为二子头扳。这是新功能的测试步骤；此前记录的原生操作验收针对较早的提子界面。
+首次测试可在 KaTrain 打开 [examples/shusaku-demo.sgf](examples/shusaku-demo.sgf)，前进到第 3 手黑 D5，再点击“解释刚才一手”。应显示秀策尖关联、作用说明、出处与术语。其他经典样例及目标手数见[使用说明](docs/USAGE.md)。这些是新增功能的测试步骤；此前记录的原生操作验收针对较早的提子界面。
 
 ### Standalone web testing / 独立网页测试
 
@@ -48,9 +48,9 @@ For development or backend testing, double-click `START_EXPLAINER.cmd` and use `
 
 开发或后台测试时，可双击 `START_EXPLAINER.cmd`，打开 `http://127.0.0.1:8788`。这个辅助界面支持 SGF 上传、自定义候选，并共用同一讲解流程。测试期间保留其启动窗口。配置方法与数字含义见[网页使用说明](docs/USAGE.md)。
 
-Click “定式示例 / Joseki example” and then “解释这一步 / Explain this move” to test the same fifth-move example in the web interface. The example selects the recorded move automatically.
+Choose a sample under “经典棋形 / Classic pattern” on the web, click “定式示例 / Joseki example”, then “解释这一步 / Explain this move”. The example selects its intended recorded move automatically.
 
-网页中点击“定式示例 / Joseki example”，再点击“解释这一步 / Explain this move”，即可测试同一第 5 手样例；示例自动选择实战着法。
+网页中先在“经典棋形 / Classic pattern”下拉框选择一类，再点击“定式示例 / Joseki example”和“解释这一步 / Explain this move”；示例自动选择对应的实战手。
 
 ## Available artifacts / 现有成果
 

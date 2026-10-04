@@ -18,6 +18,13 @@ from .sgf import parse_sgf
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
+JOSEKI_EXAMPLES = {
+    'basic': ('joseki-demo.sgf', 4),
+    'kick': ('kick-demo.sgf', 2),
+    'mi': ('mi-flying-dagger-demo.sgf', 16),
+    'attach-retreat': ('attach-retreat-demo.sgf', 4),
+    'shusaku': ('shusaku-demo.sgf', 2),
+}
 
 
 def public_game(game, game_id):
@@ -157,8 +164,14 @@ def handler_for(app):
                 self.json_response(job if job else {'error': text('未找到分析', 'Analysis not found')}, 200 if job else 404)
             elif path == '/api/examples/capture':
                 self.json_response({'sgf': (PROJECT_DIR / 'examples' / 'capture-demo.sgf').read_text(encoding='utf-8')})
-            elif path == '/api/example/joseki':
-                self.json_response({'sgf': (PROJECT_DIR / 'examples' / 'joseki-demo.sgf').read_text(encoding='utf-8')})
+            elif path == '/api/example/joseki' or path.startswith('/api/example/joseki/'):
+                key = path.rsplit('/', 1)[-1] if path.startswith('/api/example/joseki/') else 'basic'
+                if key not in JOSEKI_EXAMPLES:
+                    self.json_response({'error': text('没有这个经典棋形示例', 'Classic pattern example not found')}, 404)
+                    return
+                filename, move_index = JOSEKI_EXAMPLES[key]
+                self.json_response({'sgf': (PROJECT_DIR / 'examples' / filename).read_text(encoding='utf-8'),
+                                    'move_index': move_index})
             elif path in ('/', '/index.html'):
                 encoded = (PROJECT_DIR / 'web' / 'index.html').read_bytes()
                 self.send_response(200)

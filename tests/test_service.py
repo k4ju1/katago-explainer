@@ -103,6 +103,21 @@ class ExplanationPipelineTests(unittest.TestCase):
         self.assertNotEqual(result['ai_move'], result['selected_move'])
         self.assertNotIn('winrate', reference)
 
+    def test_classic_demos_keep_the_selected_move_and_history_in_the_pipeline(self):
+        cases = [('kick-demo.sgf', 2, 'E3', 'star-approach-kick'),
+                 ('mi-flying-dagger-demo.sgf', 16, 'G6', 'star-33-mi-flying-dagger'),
+                 ('attach-retreat-demo.sgf', 4, 'D3', 'komoku-high-approach-attach-retreat'),
+                 ('shusaku-demo.sgf', 2, 'D5', 'komoku-shusaku-kosumi')]
+        for filename, index, move, family in cases:
+            with self.subTest(filename=filename):
+                sgf = (Path(__file__).resolve().parents[1] / 'examples' / filename).read_text(encoding='utf-8')
+                result = self.explain(sgf, index)
+                self.assertEqual(result['selected_move'], move)
+                self.assertEqual([item['id'] for item in result['explanation']['joseki']], [family])
+                self.assertIn('顺序与棋形均吻合', result['explanation']['joseki'][0]['relation']['zh'])
+                self.assertTrue(result['explanation']['terms'])
+                self.assertEqual(result['branches'][0]['steps'][1]['move'], move)
+
 
 if __name__ == '__main__':
     unittest.main()
