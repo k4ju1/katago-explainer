@@ -101,19 +101,6 @@ The probe overrides the report perspective to `BLACK`, so stored winrates, score
 
 探针通过启动配置将输出视角固定为 `BLACK`，使胜率、目差和归属预测与摘要中的黑方视角保持一致。
 
-## Roadmap / 开发路线
-
-| Stage / 阶段 | Deliverable / 成果 |
-| --- | --- |
-| Weeks 1–3 / 第 1–3 周 | SGF navigation, candidates, PV playback / 棋谱浏览、候选表、变化播放 |
-| Weeks 4–6 / 第 4–6 周 | Candidate comparison, board facts, explanations / 候选比较、棋盘事实、讲解 |
-| Weeks 7–8 / 第 7–8 周 | Claim verification, follow-up questions, fixed dataset / 主张验证、追问、固定评测集 |
-| Weeks 9–10 / 第 9–10 周 | Frozen evaluation build, baselines, expert review / 冻结评测版本、基线实验、专家评审 |
-| Weeks 11–12 / 第 11–12 周 | Reliability fixes, report export, demo / 稳定性改进、报告导出、演示 |
-
-These are planning estimates. Evaluation will test whether candidate comparison and claim verification reduce unsupported explanations, while measuring their computational cost. Start with 30 pilot positions, then freeze a held-out evaluation set. Record later engineering revisions separately from the evaluated build.
-
-以上周期是计划估计。评测重点是候选比较与主张验证能否减少无依据讲解，以及增加多少计算成本。先做 30 个试标局面，再固定独立评测集；评测后的工程修改与被冻结的版本分开记录。
 
 ## References / 参考
 
