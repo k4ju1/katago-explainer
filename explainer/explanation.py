@@ -8,6 +8,8 @@ from __future__ import annotations
 import math
 
 from .board import Board, BoardError, other, point_to_vertex, vertex_to_point
+from .joseki import find_joseki
+from .terms import get_terms
 
 
 def _bi(zh, en):
@@ -33,15 +35,15 @@ def _description(before: Board, player: str, move: str, facts: dict) -> list[dic
         result.append(_bi(f"{move} 直接提掉对方 {facts['capturedCount']} 颗棋子（{points}），使这些交叉点重新变为空点。",
                           f"{move} immediately captures {facts['capturedCount']} opposing stones ({points}), freeing those intersections."))
     if facts["connectedGroups"]:
-        result.append(_bi(f"{move} 把原先 {facts['connectedGroups']} 块分别连接的己方棋子连成一块；连接后共 {facts['moveGroupLibertiesAfter']} 口气。",
+        result.append(_bi(f"{move} 粘住原先分开的 {facts['connectedGroups']} 块己方棋子，直接连成一块；连接后共 {facts['moveGroupLibertiesAfter']} 口气。",
                           f"{move} joins {facts['connectedGroups']} previously separate friendly chains into one chain with {facts['moveGroupLibertiesAfter']} liberties."))
     if facts["rescuedAtariGroups"]:
         anchors = ", ".join(group[0] for group in facts["rescuedAtariGroups"])
-        result.append(_bi(f"原先在 {anchors} 的己方棋块只有一口气；{move} 后连接棋块有 {facts['moveGroupLibertiesAfter']} 口气，解除当前叫吃。",
+        result.append(_bi(f"原先在 {anchors} 的己方棋块处于打吃、只有一口气；{move} 后连接棋块有 {facts['moveGroupLibertiesAfter']} 口气，解除当前打吃。",
                           f"The friendly chains at {anchors} had one liberty; after {move}, the joined chain has {facts['moveGroupLibertiesAfter']} liberties, escaping the immediate atari."))
     if facts["createdAtariGroups"]:
         anchors = ", ".join(group[0] for group in facts["createdAtariGroups"])
-        result.append(_bi(f"{move} 将对方在 {anchors} 的棋块从多口气压到一口气，形成叫吃；对方仍可能逃跑或反击。",
+        result.append(_bi(f"{move} 将对方在 {anchors} 的棋块从多口气压到一口气，形成打吃；对方仍可能逃跑或反击。",
                           f"{move} reduces the opposing chains at {anchors} from multiple liberties to one, giving atari; the opponent may still escape or counterplay."))
     if facts["selfAtari"]:
         result.append(_bi(f"{move} 后本方落子所在棋块仅剩一口气；是否值得这样下，必须结合后续变化判断。",
@@ -50,6 +52,54 @@ def _description(before: Board, player: str, move: str, facts: dict) -> list[dic
         result.append(_bi(f"此着形成劫，{facts['ko']} 处不能立即回提。",
                           f"This move creates a ko; an immediate recapture at {facts['ko']} is illegal."))
     return result
+
+
+def _fact_terms(facts):
+    ids = []
+    if facts.get('capturedCount'):
+        ids.append('capture')
+    if facts.get('connectedGroups'):
+        ids.extend(['connect', 'liberties'])
+    if any(facts.get(key) for key in ('createdAtariGroups', 'rescuedAtariGroups', 'selfAtari')):
+        ids.extend(['atari', 'liberties'])
+    if facts.get('ko'):
+        ids.append('ko')
+    return ids
+
+
+def _shape(before, player, move):
+    """Describe observable adjacency, without inferring strategic success."""
+    point = vertex_to_point(move, before.size)
+    if point is None:
+        return [], []
+    x, y = point
+    diagonal, knight, touches = [], [], []
+    for (a, b), color in sorted(before.cells.items()):
+        offset = (abs(x - a), abs(y - b))
+        vertex = point_to_vertex((a, b), before.size)
+        if color == player and offset == (1, 1):
+            diagonal.append(vertex)
+        elif color == player and sorted(offset) == [1, 2]:
+            knight.append(vertex)
+        elif color != player and sum(offset) == 1:
+            touches.append(vertex)
+    descriptions, ids = [], []
+    if touches:
+        ids.append('attach')
+        descriptions.append(_bi(
+            f"{move} 靠在对方 {touches[0]} 旁边，两个落点上下或左右紧邻；靠之后如何应对，需要沿实际变化核对。",
+            f"{move} attaches beside the opposing stone at {touches[0]}, sharing a grid edge; the replies must be checked in the actual continuation."))
+    if diagonal:
+        ids.append('diagonal')
+        descriptions.append(_bi(
+            f"{move} 与己方 {diagonal[0]} 构成尖形，横纵各相距一格；斜邻关系本身不等于直接粘连。",
+            f"{move} forms a diagonal shape with the friendly stone at {diagonal[0]}; diagonal adjacency alone is not a solid connection."))
+    elif knight:
+        ids.append('keima')
+        descriptions.append(_bi(
+            f"{move} 与己方 {knight[0]} 构成小飞形，横纵距离为一格与两格；能否被切断，要结合对方应手和外围配置判断。",
+            f"{move} forms a small knight-move shape with the friendly stone at {knight[0]}, offset by one and two grid steps; cutting possibilities depend on replies and surrounding stones."))
+    return descriptions, ids
 
 
 def _location(before: Board, player: str, move: str):
@@ -108,7 +158,7 @@ def _replay_branch(before: Board, player: str, branch: dict, fallback_pv=None):
     return replayed, error
 
 
-def generate_explanation(before: Board, player: str, move: str, analysis: dict, pv=None) -> dict:
+def generate_explanation(before: Board, player: str, move: str, analysis: dict, pv=None, *, history=None) -> dict:
     """Return the bilingual public schema used by the local UI.
 
     `analysis` candidate metrics must use the original actor's perspective:
@@ -120,6 +170,17 @@ def generate_explanation(before: Board, player: str, move: str, analysis: dict, 
     move = facts["move"]
     reasons, continuation, limitations = [], [], []
     immediate = _description(before, player, move, facts)
+    term_ids = _fact_terms(facts)
+    shapes, shape_terms = _shape(before, player, move) if not immediate else ([], [])
+    term_ids.extend(shape_terms)
+    for index, description in enumerate(shapes):
+        reasons.append({'id': f'move-shape-{index}', 'level': 'board', 'text': description, 'ply': 1})
+    joseki = find_joseki(before, player, move, history=history)
+    for match in joseki:
+        term_ids.extend(match.get('term_ids', []))
+        if match.get('move_explanation'):
+            reasons.append({'id': f"joseki-role-{match['id']}", 'level': 'reference',
+                            'text': match['move_explanation'], 'ply': 1})
     for index, description in enumerate(immediate):
         reasons.append({"id": f"immediate-{index}", "level": "board", "text": description, "ply": 1})
     if facts["capturedCount"]:
@@ -130,7 +191,7 @@ def generate_explanation(before: Board, player: str, move: str, analysis: dict, 
                 captured_chains[tuple(chain["stones"])] = chain
         if captured_chains and all(chain["libertyCount"] == 1 for chain in captured_chains.values()):
             reasons.append({"id": "capture-urgency", "level": "board", "ply": 1, "text": _bi(
-                "被提掉的棋块在落子前已经处于叫吃、只有一口气；这手完成当前提子。是否应立即兑现这一收获，还要对照其他候选及对方的后续应手。",
+                "被提掉的棋块在落子前已经处于打吃、只有一口气；这手完成当前提子。是否应立即兑现这一收获，还要对照其他候选及对方的后续应手。",
                 "The captured chains were already in atari with one liberty before this move; the move completes the immediate capture. Whether to take that gain now still requires comparison with other choices and the opponent's continuations.")})
     location, interpretation = _location(before, player, move)
     if location:
@@ -189,8 +250,10 @@ def generate_explanation(before: Board, player: str, move: str, analysis: dict, 
     if not selected_branch and branches:
         selected_branch = branches[0]
     replayed, replay_error = _replay_branch(before, player, selected_branch, pv)
+    replay_history = list(history) if isinstance(history, (list, tuple)) else history
     for step in replayed:
         ply, actor, vertex, step_facts = step["ply"], step["player"], step["move"], step["facts"]
+        term_ids.extend(_fact_terms(step_facts))
         zh_actor, en_actor = _color(actor)
         step_details = _description(step["before"], actor, vertex, step_facts)
         if not step_details:
@@ -201,6 +264,18 @@ def generate_explanation(before: Board, player: str, move: str, analysis: dict, 
         if step_details:
             zh += " " + step_details[0]["zh"]
             en += " " + step_details[0]["en"]
+        if ply > 1:
+            references = find_joseki(step['before'], actor, vertex, history=replay_history)
+            if references:
+                reference = references[0]
+                term_ids.extend(reference.get('term_ids', []))
+                role, purpose = reference['move_role'], reference['move_explanation']
+                zh += f" 定式参考中，本手为「{role['zh']}」。{purpose['zh']}"
+                en += f" In the joseki reference, this move is {role['en'].lower()}. {purpose['en']}"
+                reasons.append({'id': f'continuation-reference-{ply}', 'level': 'reference',
+                                'ply': ply, 'text': purpose})
+        if isinstance(replay_history, list):
+            replay_history.append((actor, vertex))
         evaluation = step.get("eval") or {}
         if _number(evaluation.get("winrate")):
             zh += f" 此局面重新分析的{zh_color}胜率为 {evaluation['winrate']:.3f}%。"
@@ -257,12 +332,23 @@ def generate_explanation(before: Board, player: str, move: str, analysis: dict, 
     if replay_error:
         limitations.append(_bi("变化遇到非法着法，已停止展示，后续步骤未用于讲解。",
                                "Replay stopped at an illegal move; later steps were excluded from the explanation."))
-    if not immediate and interpretation:
-        summary = interpretation
+    if joseki:
+        role = joseki[0]['move_role']
+        summary = _bi(
+            f"从定式参考棋形看，{move} 是「{role['zh']}」这一步。本局是否应优先这样下，仍要结合候选补搜、对方应手与全盘配置判断。",
+            f"In the reference corner pattern, {move} plays the {role['en'].lower()} role. Whether to prioritize this move in the game still depends on candidate searches, replies, and the whole-board position.")
+        limitations.append(_bi(
+            '定式关联只核对已收录的短前缀；参考手顺与 KataGo 实际搜索变化分别展示。匹配定式不表示当前局面已完成定式、已经做活或必然应走完整条参考路线。',
+            'Joseki references check only short cataloged prefixes. Reference sequences are separate from actual KataGo search lines. A match does not establish a completed joseki, life, or an obligation to follow the entire reference.'))
     elif immediate:
         summary = immediate[0]
+    elif shapes:
+        summary = shapes[0]
+    elif interpretation:
+        summary = interpretation
     else:
         summary = _bi(f"先查看 {move} 对棋盘的直接影响，再沿搜索变化核对对方应手和局面的演变。",
                       f"Inspect the immediate board effect of {move}, then replay the search line to check the opponent's replies and the resulting positions.")
     return {"title": _bi(f"为什么下在 {move}", f"Why play {move}"), "summary": summary,
-            "reasons": reasons, "continuation": continuation, "limitations": limitations}
+            "reasons": reasons, "continuation": continuation, "limitations": limitations,
+            "joseki": joseki, "terms": get_terms(term_ids)}

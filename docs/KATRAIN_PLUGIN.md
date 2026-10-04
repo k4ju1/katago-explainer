@@ -4,9 +4,9 @@
 
 This experimental extension targets the **KaTrain v1.20.0 Windows folder distribution**. It uses the external `gui.kv` resource and the frozen application's Python import mechanism to attach an explanation panel. It is not an official, stable KaTrain plugin API.
 
-原生启动已通过用户协助的操作验收：原有 KaTrain v1.20.0 冻结程序成功启动，用户确认棋盘与两个讲解按钮可见；发起原生讲解请求后，弹窗显示讲解、棋盘和胜率。此前的源码、安装目录及冻结归档检查用于验证接入机制。另有 62 项自动测试通过，并已运行真实 KataGo 核心流程；这些测试不等同于自动化的原生界面验收，也不代表讲解已完成专家评测。
+此前的原生版本已通过用户协助的操作验收：原有 KaTrain v1.20.0 冻结程序成功启动，用户确认棋盘与两个讲解按钮可见；发起原生讲解请求后，弹窗显示讲解、棋盘和胜率。源码、安装目录及冻结归档检查用于验证接入机制，核心流程也已运行真实 KataGo 并通过自动测试。这些记录不等同于自动化的原生界面验收，不包含随后新增的定式参考显示等功能的人工验收，也不代表讲解已完成专家评测。
 
-Native startup passed a user-assisted acceptance check: the original frozen KaTrain v1.20.0 executable opened, the user confirmed the board and two explanation buttons, and a native explanation request displayed an explanation, board, and winrate in the popup. Source, installation layout, and archive checks establish the integration mechanism. Separately, 62 automated tests passed and the core ran against the real KataGo engine. These are not automated native-UI acceptance tests or an expert evaluation of explanation quality.
+An earlier native build passed a user-assisted acceptance check: the original frozen KaTrain v1.20.0 executable opened, the user confirmed the board and two explanation buttons, and a native explanation request displayed an explanation, board, and winrate in the popup. Source, installation layout, and archive checks establish the integration mechanism; the core also ran against the real KataGo engine and passed automated tests. These records are not automated native-UI acceptance tests, do not include manual acceptance of later additions such as the joseki reference display, and are not an expert evaluation of explanation quality.
 
 本次保存的原生请求结果为 9 路实战手 C8，耗时 12.875 秒；两条分支各保存 7 个棋盘快照（含初始局面），引擎进程与读取线程均已结束。这条记录对应实战手讲解路径；平均性能和讲解质量仍需更广泛的评测。
 
@@ -26,6 +26,14 @@ The saved native-request result explains the played move C8 on a 9×9 board in 1
 右侧两个讲解按钮跟随 KaTrain 当前选择的界面语言。弹窗提供独立的中文／英文切换；切换语言时，搜索结果、棋盘快照和数值不变。
 
 The two dock buttons follow KaTrain's selected interface language. The popup has a separate Chinese/English switch; changing language retains the same search results, board snapshots, and values.
+
+19 路局面匹配参考目录中的角部前缀时，弹窗增加“定式关联”和专业术语释义：包括名称、本手作用、参考手顺、出处和上下文说明，★ 标注本次讲解手。真实落子顺序与仅有相同棋形的初始摆子分别标注；参考手顺与引擎候选变化分开。当前只收录四类精选前缀，支持旋转、镜像与黑白互换；未匹配时不显示该区块。来源与限制见[定式参考说明](JOSEKI_REFERENCES.md)。
+
+When a 19×19 position matches a cataloged corner prefix, the popup adds a joseki reference and professional terminology: its name, move role, reference sequence, sources, and context notes. ★ marks the explained move. Actual move order is labeled separately from an equivalent setup diagram; reference sequences stay separate from engine candidate variations. The catalog currently has four curated prefixes, with rotations, reflections, and color reversal. The block is hidden when there is no match. See [Joseki references](JOSEKI_REFERENCES.md) for sources and limits.
+
+定式测试步骤：在 KaTrain 打开项目的 `examples/joseki-demo.sgf`，前进到第 5 手黑 E3 落下后的节点，再点击“解释刚才一手”。应出现“星位点三三：传统扳长前缀”，E3 以二子头扳的角色给出有条件的作用说明，并显示参考出处与术语。★ 应标在参考第 5 手；第 6、7 手仅是后续参照。本例不要求 E3 成为 KataGo 一选，也不表示这项新增功能已经完成人工原生验收。
+
+For a joseki test, open the project's `examples/joseki-demo.sgf` in KaTrain, advance to the node after move five, Black E3, and click “Explain last move”. Expect the traditional star-point 3-3 prefix, a conditional explanation of E3's hane role at the head of two stones, sources, and terms. ★ should mark reference move five; moves six and seven are later reference steps. The test does not require E3 to be KataGo's first choice and does not constitute completed manual native acceptance of this addition.
 
 实战手讲解以该着落下前的局面为起点；AI 一选讲解以发起分析时选中的局面为起点。弹窗回放使用这次结果保存的确切棋盘快照；每个节点的曲线值来自该局面的独立搜索，并固定为被讲解着法的执棋方视角。切换 KaTrain 当前节点后，原有结果仍对应发起分析时的局面，应重新发起请求以讲解新局面。
 
@@ -75,6 +83,10 @@ The installed KV and the v1.20.0 source KV have this same hash on this computer.
 原生集成与网页入口共用讲解后端和同一证据格式。当前讲解由棋盘规则与证据模板生成；提子、气、连接和打吃可直接重放核对，位置性解读标为推测。主要变化是代表路径，有限预算下的胜率曲线不构成因果证明。深入棋理、语言模型推理和完整评测仍待开发；适用范围与限制见[使用说明](USAGE.md)。
 
 The native integration and web entry share the explanation backend and evidence format. Explanations currently use board rules and evidence templates. Captures, liberties, connections, and atari can be verified through replay; positional interpretations are tentative. Principal variations are representative lines, and finite-budget curves are not causal proof. Deeper Go reasoning, language-model reasoning, and comprehensive evaluation remain future work. See the [User Guide](USAGE.md) for scope and limitations.
+
+定式匹配使用当前节点的实际历史和棋盘状态，不需要另传棋谱。它提供知识参照，不修改 KataGo 一选排序或固定执棋方视角的评估。术语表也不是自动棋形分类器：提子与打吃可由规则核验，先手、厚势等词的释义不能直接证明本局取得了相应效果。当前没有完整定式数据库，也没有语言模型讲解。
+
+Joseki matching uses the selected node's history and board state without another SGF upload. It supplies reference knowledge and does not alter KataGo's first-choice ranking or the fixed-player evaluation perspective. The glossary is not an automatic shape classifier: rules can verify captures and atari, while definitions of sente or thickness do not prove those effects in this game. There is no comprehensive joseki database or language-model explanation yet.
 
 实现依据 / Implementation references: [PyInstaller frozen importer](https://github.com/pyinstaller/pyinstaller/blob/v6.14.1/PyInstaller/loader/pyimod02_importers.py), [Kivy KV parser](https://github.com/kivy/kivy/blob/2.3.1/kivy/lang/parser.py)。对应冻结归档的实际内容也已在本机检查；这些机制来源与上述用户协助的原生交互验收分开记录。
 

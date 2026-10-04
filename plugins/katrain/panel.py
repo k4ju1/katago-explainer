@@ -553,9 +553,44 @@ class KaTrainExplainerPanel(BoxLayout):
 
         heading(self._localized(explanation.get("title")) or self._t("为什么这样下", "Why this move"))
         sections.append(escape_markup(self._localized(explanation.get("summary"))))
+        joseki = explanation.get("joseki") or []
+        if joseki:
+            heading(self._t("定式关联", "Joseki reference"))
+            sections.append(escape_markup(self._t("以下是定式参照手顺，独立于左侧 KataGo 搜索变化；定式名称不等于当前全局最佳选择。★ 标记正在讲解的一手。", "These are joseki reference patterns, separate from the KataGo search lines on the left. A recognized joseki does not establish the best whole-board choice. ★ marks the move being explained.")))
+            for match in joseki:
+                sections.append("[b]" + escape_markup(self._localized(match.get("name"))) + "[/b]")
+                metadata = [self._localized(match.get(key)) for key in ("corner", "stage", "relation")]
+                sections.append(escape_markup(" · ".join(part for part in metadata if part)))
+                role = self._localized(match.get("move_role"))
+                if role:
+                    sections.append(escape_markup(self._t("本手作用：", "This move's role: ") + role))
+                move_explanation = self._localized(match.get("move_explanation"))
+                if move_explanation:
+                    sections.append(escape_markup(move_explanation))
+                reference = []
+                for index, step in enumerate(match.get("reference_line") or [], 1):
+                    player = self._t("黑", "B") if step.get("player") == "B" else self._t("白", "W")
+                    mark = "★ " if step.get("selected") else ""
+                    point = f"{mark}{step.get('ply', index)}. {player} {step.get('move', '')}"
+                    role = self._localized(step.get("role"))
+                    reference.append(point + (" — " + role if role else ""))
+                if reference:
+                    sections.append("[b]" + escape_markup(self._t("定式参考手顺", "Joseki reference sequence")) + "[/b]\n" + escape_markup("\n".join(reference)))
+                for source in match.get("sources") or []:
+                    title, url = self._localized(source.get("title")), str(source.get("url") or "")
+                    sections.append(escape_markup(self._t("出处：", "Source: ") + title + ("\n" + url if url else "")))
+                for note in match.get("notes") or []:
+                    sections.append("• " + escape_markup(self._localized(note)))
+        terms = explanation.get("terms") or []
+        if terms:
+            heading(self._t("围棋术语", "Go terminology"))
+            for term in terms:
+                name, definition = self._localized(term.get("term")), self._localized(term.get("definition"))
+                if name:
+                    sections.append("[b]" + escape_markup(name) + "[/b]" + ("\n" + escape_markup(definition) if definition else ""))
         heading(self._t("棋理与证据", "Reasons and evidence"))
         for index, reason in enumerate(explanation.get("reasons", []), 1):
-            level = {"board": self._t("棋盘事实", "Board fact"), "search": self._t("搜索支持", "Search-supported"), "tentative": self._t("待进一步验证", "Tentative")}.get(reason.get("level"), "")
+            level = {"board": self._t("棋盘事实", "Board fact"), "search": self._t("搜索支持", "Search-supported"), "tentative": self._t("待进一步验证", "Tentative"), "reference": self._t("定式参考", "Joseki reference")}.get(reason.get("level"), "")
             sections.append(f"[b]{index}. {escape_markup(level)}[/b]\n{escape_markup(self._localized(reason.get('text')))}")
         player = self._t("黑棋", "Black") if result.get("player") == "B" else self._t("白棋", "White")
         heading(self._t("同一局面的候选比较", "Candidates in the same position") + " · " + player + self._t("视角", " perspective"))

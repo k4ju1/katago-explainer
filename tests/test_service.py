@@ -90,6 +90,19 @@ class ExplanationPipelineTests(unittest.TestCase):
         self.assertEqual(result['selected']['original_order'], 0)
         self.assertEqual(result['branches'][0]['move'], result['selected_move'])
 
+    def test_recorded_joseki_move_uses_the_real_before_move_history(self):
+        sgf = (Path(__file__).resolve().parents[1] / 'examples' / 'joseki-demo.sgf').read_text(encoding='utf-8')
+        result = self.explain(sgf, 4)
+        self.assertEqual(result['selected_move'], 'E3')
+        reference = result['explanation']['joseki'][0]
+        self.assertEqual(reference['id'], 'star-33-traditional')
+        self.assertIn('顺序与棋形均吻合', reference['relation']['zh'])
+        self.assertEqual(reference['move_role']['zh'], '扳（二子头扳）')
+        self.assertEqual([step['move'] for step in reference['reference_line'] if step['selected']], ['E3'])
+        self.assertIn('hane', [term['id'] for term in result['explanation']['terms']])
+        self.assertNotEqual(result['ai_move'], result['selected_move'])
+        self.assertNotIn('winrate', reference)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -117,7 +117,7 @@ def explain_move(game, game_id, move_index, choice, settings, output_dir, progre
         evidence = {'selected': selected, 'alternative': alternative, 'comparison': comparison,
                     'ai_move': ai_move, 'base_eval': base_eval, 'branches': branches}
         explanation = generate_explanation(before, player, selected_move, evidence,
-                                           pv=selected['pv'][:PV_PLIES])
+                                           pv=selected['pv'][:PV_PLIES], history=game.moves[:move_index])
         explanation['limitations'].append(text(
             '曲线按讲解这手的执棋方固定视角显示；每个节点重新搜索 256 visits。前后差值也包含有限搜索的波动，不是因果证明。',
             'The curve keeps the explained player’s perspective fixed. Each position is searched at 256 visits; differences also include finite-search variation and are not causal proof.'))

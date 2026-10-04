@@ -157,6 +157,8 @@ def handler_for(app):
                 self.json_response(job if job else {'error': text('未找到分析', 'Analysis not found')}, 200 if job else 404)
             elif path == '/api/examples/capture':
                 self.json_response({'sgf': (PROJECT_DIR / 'examples' / 'capture-demo.sgf').read_text(encoding='utf-8')})
+            elif path == '/api/example/joseki':
+                self.json_response({'sgf': (PROJECT_DIR / 'examples' / 'joseki-demo.sgf').read_text(encoding='utf-8')})
             elif path in ('/', '/index.html'):
                 encoded = (PROJECT_DIR / 'web' / 'index.html').read_bytes()
                 self.send_response(200)

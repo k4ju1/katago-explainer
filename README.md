@@ -4,7 +4,7 @@ Evidence-supported explanations of Go moves using KataGo, counterfactual search,
 
 结合 KataGo、候选反事实搜索与主张验证，为围棋着法提供有证据支撑的解释。
 
-[KaTrain extension / KaTrain 扩展](docs/KATRAIN_PLUGIN.md) · [Web testing guide / 网页测试说明](docs/USAGE.md) · [Project plan — English](docs/PROJECT_PLAN.md) · [项目方案 — 中文](docs/PROJECT_PLAN.zh-CN.md) · [Verification / 接口验证](docs/feasibility.md)
+[KaTrain extension / KaTrain 扩展](docs/KATRAIN_PLUGIN.md) · [Web testing guide / 网页测试说明](docs/USAGE.md) · [Joseki references / 定式参考](docs/JOSEKI_REFERENCES.md) · [Project plan — English](docs/PROJECT_PLAN.md) · [项目方案 — 中文](docs/PROJECT_PLAN.zh-CN.md) · [Verification / 接口验证](docs/feasibility.md)
 
 ## Overview / 项目概览
 
@@ -20,9 +20,13 @@ Documentation, the review interface, explanations, and probe reports support Chi
 
 **当前阶段：可运行的本机着法讲解原型。** 可导入 SGF，讲解实战手或 AI 推荐，逐步播放变化并查看重新评估的胜率。当前讲解使用可核验棋盘事实和证据模板；语言模型推理、完整主张验证器与专家评测仍需继续开发。
 
-The core has been tested with the real KataGo engine, and 62 automated tests have passed. The experimental native extension has also completed a user-assisted acceptance check: the original KaTrain executable opened with the board and two explanation buttons, and a native explanation request displayed an explanation, board, and winrate in the popup. This manual UI check is separate from the automated core tests. The integration targets the pinned KaTrain v1.20.0 Windows folder build and is not an official stable plugin API.
+The current reference layer recognizes four curated corner-sequence prefixes on 19×19 boards, with rotations, reflections, and color reversal. A matching result adds a bilingual name, the move's role, a reference sequence, sources, and context notes. Actual recorded order is distinguished from a matching diagram shape, and reference sequences stay separate from KataGo's searched variations. A Chinese-first bilingual glossary explains terms such as 星位 (star point), 小目 (komoku), 挂角 (approach), 扳 (hane), and 粘 (solid connection). This is a small reference catalog, not a comprehensive joseki database; see [reference coverage and safeguards](docs/JOSEKI_REFERENCES.md).
 
-核心流程已使用真实 KataGo 引擎测试，62 项自动测试已通过。实验性的原生扩展也完成了用户协助的操作验收：原有 KaTrain 程序启动后显示棋盘和两个讲解按钮，发起原生讲解请求后，弹窗显示讲解、棋盘和胜率。这项人工界面验收与核心自动测试分开记录。集成仅针对固定版本的 KaTrain v1.20.0 Windows 文件夹版，不是官方稳定插件 API。
+当前参考层在 19 路棋盘上识别四类精选角部手顺前缀，支持旋转、镜像和黑白互换。匹配后提供中英定式名称、本手作用、参考手顺、出处和适用说明。真实落子顺序与仅有相同棋形的摆子局面分别标注，定式参考手顺与 KataGo 搜索变化分别展示。中英术语表优先使用星位、小目、挂角、扳、粘等中文专业名称。这是小型参考目录，不是完整定式数据库；覆盖范围与核验边界见[定式参考说明](docs/JOSEKI_REFERENCES.md)。
+
+The core has been tested with the real KataGo engine and automated tests. An earlier native build completed a user-assisted acceptance check: the original KaTrain executable opened with the board and two explanation buttons, and a native explanation request displayed an explanation, board, and winrate in the popup. This check does not establish manual acceptance of later additions such as the joseki reference display. The integration targets the pinned KaTrain v1.20.0 Windows folder build and is not an official stable plugin API.
+
+核心流程已使用真实 KataGo 引擎与自动测试验证。此前的原生版本完成了用户协助的操作验收：原有 KaTrain 程序启动后显示棋盘和两个讲解按钮，发起原生讲解请求后，弹窗显示讲解、棋盘和胜率。这项验收不包含随后新增的定式参考显示等功能。集成仅针对固定版本的 KaTrain v1.20.0 Windows 文件夹版，不是官方稳定插件 API。
 
 ## Start in KaTrain / 在 KaTrain 中启动
 
@@ -34,11 +38,19 @@ The two dock buttons follow KaTrain's selected interface language. The explanati
 
 右侧两个讲解按钮跟随 KaTrain 当前选择的界面语言。讲解弹窗还提供独立的中英切换，两种语言使用同一搜索证据与数值。
 
+To test the new joseki reference, open [examples/joseki-demo.sgf](examples/joseki-demo.sgf) in KaTrain, advance to the fifth move (Black E3), and click “Explain last move”. The expected reference is “星位点三三：传统扳长前缀”, with E3 marked as a hane at the head of two stones. This is a test workflow for the new feature; the prior native acceptance record covers the earlier capture UI.
+
+测试新增的定式参考时，在 KaTrain 打开 [examples/joseki-demo.sgf](examples/joseki-demo.sgf)，前进到第 5 手黑 E3，再点击“解释刚才一手”。应出现“星位点三三：传统扳长前缀”，E3 标为二子头扳。这是新功能的测试步骤；此前记录的原生操作验收针对较早的提子界面。
+
 ### Standalone web testing / 独立网页测试
 
 For development or backend testing, double-click `START_EXPLAINER.cmd` and use `http://127.0.0.1:8788`. This secondary interface supports SGF upload, custom candidates, and the same explanation pipeline. Keep its launcher open while testing. See the [web user guide](docs/USAGE.md) for configuration and reading the numbers.
 
 开发或后台测试时，可双击 `START_EXPLAINER.cmd`，打开 `http://127.0.0.1:8788`。这个辅助界面支持 SGF 上传、自定义候选，并共用同一讲解流程。测试期间保留其启动窗口。配置方法与数字含义见[网页使用说明](docs/USAGE.md)。
+
+Click “定式示例 / Joseki example” and then “解释这一步 / Explain this move” to test the same fifth-move example in the web interface. The example selects the recorded move automatically.
+
+网页中点击“定式示例 / Joseki example”，再点击“解释这一步 / Explain this move”，即可测试同一第 5 手样例；示例自动选择实战着法。
 
 ## Available artifacts / 现有成果
 
@@ -47,6 +59,7 @@ For development or backend testing, double-click `START_EXPLAINER.cmd` and use `
 | [Native integration guide / 原生集成说明](docs/KATRAIN_PLUGIN.md) | Experimental KaTrain v1.20.0 extension, installation, restoration, and workflow / 实验性 KaTrain v1.20.0 扩展、安装恢复与使用流程 |
 | [Native launcher / 原生启动入口](START_KATRAIN_EXPLAINER.cmd) | Original KaTrain executable with a native explanation panel and local backend / 原有 KaTrain 程序、原生讲解面板与本机后台 |
 | [Web user guide / 网页使用说明](docs/USAGE.md) | Secondary developer/testing interface and evidence interpretation / 辅助开发测试界面与证据解读 |
+| [Joseki references / 定式参考说明](docs/JOSEKI_REFERENCES.md) | Curated prefixes, source attribution, history matching, and terminology limits / 精选前缀、来源、历史匹配与术语边界 |
 | [English plan](docs/PROJECT_PLAN.md) / [中文方案](docs/PROJECT_PLAN.zh-CN.md) | Scope, architecture, algorithm, dataset, evaluation, and roadmap / 范围、架构、算法、数据集、评测与开发路线 |
 | [Verification report / 验证报告](docs/feasibility.md) | Bilingual record of a real engine run and its limits / 真实引擎运行与适用限制的双语报告 |
 | [Probe / 探针](scripts/smoke_probe.py) | Standard-library Python program for one root search and two candidate searches / 用 Python 标准库运行根搜索和两个候选补搜 |
@@ -76,6 +89,10 @@ Position / 局面
 Read `order=0` to identify the recommendation from the unrestricted root search. Do not re-rank by winrate and call the result the engine's first choice. Candidate searches constrain only the first move; later replies remain free. Current rule checks and explanation labels distinguish exact board facts, search-supported assessments, and tentative interpretations. A comprehensive claim verifier remains planned.
 
 从未限制根搜索的 `order=0` 读取引擎推荐，不自行按胜率重新定义一选。候选补搜只约束第一手，后续应手保持自由。当前规则核验与讲解标签区分精确棋盘事实、搜索支持的判断和推测性解读；完整主张验证器仍在开发计划中。
+
+Joseki recognition provides historical reference and terminology. It does not decide whether the move is the engine's first choice or justify its winrate change; those judgments use the actual root search, candidate re-searches, and replayed board facts.
+
+定式识别提供已有手顺的参照与术语说明。一手棋是否为 AI 一选、胜率变化有多少，仍依据真实根搜索、候选补搜和棋盘重放事实判断；定式名称本身不能替代这些证据。
 
 ## Run the probe / 运行探针
 
