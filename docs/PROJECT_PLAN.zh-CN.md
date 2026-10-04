@@ -203,7 +203,9 @@ PV 是搜索提供的代表变化。只有 PV 坐标而没有各节点完整评�
 
 将证据包与文本分开保存。文本可以重写，事实来源不随重写改变。
 
-文档、探针帮助与报告使用中英双语。后续界面和解释增加 `language=zh-CN/en`，两种语言共用同一证据包，坐标、数字、变化和证据级别保持一致；围棋术语以双语术语表统一。当前仅实现文档与探针的双语说明，应用界面仍在开发计划中。
+文档、探针帮助与报告、原生扩展、网页界面和模板讲解已支持中英双语。原生讲解按钮跟随 KaTrain 的界面语言，讲解弹窗提供独立中英切换。两种语言共用同一证据包，坐标、数字、变化和证据级别保持一致；后续语言模型生成与完整主张验证继续沿用这一约束。当前原生使用流程见[KaTrain 集成说明](KATRAIN_PLUGIN.md)。
+
+Documentation, probe help/reports, the native extension, the web interface, and template explanations support Chinese and English. Native buttons follow KaTrain's interface language; the popup has its own language switch. Both languages share the evidence package, coordinates, values, variations, and evidence levels. Future language-model generation and comprehensive claim verification retain this constraint. See the [native integration guide](KATRAIN_PLUGIN.md) for the current workflow.
 
 以下是拟用数据结构，数值和坐标为格式示意，并非实际棋局结论：
 

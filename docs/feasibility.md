@@ -1,8 +1,12 @@
 # 接口可行性验证 / Interface Feasibility Verification
 
-本报告记录真实 KataGo 引擎的接口验证结果。目前实现是接口探针（probe），并非完整的围棋讲解系统：没有调用语言模型，也没有生成或推断棋理。验证目标是确认候选排序、单候选根搜索、变化图和归属预测是否可通过 JSON 接口取得。
+本报告保留早期接口探针（probe）对真实 KataGo 引擎的验证记录。该次探针没有调用语言模型，也没有生成或推断棋理；其验证目标是确认候选排序、单候选根搜索、变化图和归属预测是否可通过 JSON 接口取得。
 
-This report records an interface verification against a real KataGo engine. The current implementation is an interface probe, not a complete Go explanation system: it does not call a language model or generate or infer Go reasoning. The verification checks whether the JSON interface provides candidate rankings, forced single-candidate root searches, principal variations, and ownership predictions.
+This report preserves the early interface probe's verification against a real KataGo engine. That probe did not call a language model or generate or infer Go reasoning. It checked whether the JSON interface provides candidate rankings, forced single-candidate root searches, principal variations, and ownership predictions.
+
+项目随后已实现本机着法讲解原型与实验性 KaTrain 原生集成，使用规则核验、候选补搜和中英双语证据模板生成有限讲解；仍未接入语言模型或完成专家评测。当前功能与原生操作验收见[KaTrain 集成说明](KATRAIN_PLUGIN.md)，网页测试见[使用说明](USAGE.md)。下文保留原始探针的输入、数值、耗时和适用限制。
+
+The project subsequently implemented a local move-explanation prototype and experimental native KaTrain integration, using rule checks, candidate searches, and bilingual evidence templates for limited explanations. Language models and expert evaluation remain future work. See the [native integration guide](KATRAIN_PLUGIN.md) for current features and user-assisted UI acceptance, or the [web user guide](USAGE.md) for testing. The original probe's inputs, values, timing, and limits are retained below.
 
 **运行状态 / Run status:** `success`。**总耗时 / Total elapsed time:** 8.3440 秒 / seconds，包括环境查询、引擎启动、搜索和进程清理 / including environment queries, engine startup, searches, and process cleanup。
 
@@ -121,9 +125,9 @@ The initial root response contains 12 candidates. Its requested budget is 256, w
 | O3 ownership / O3 ownership | 361 |
 | R6 ownership / R6 ownership | 361 |
 
-`pv` 和 `pvVisits` 可以提供变化图与逐手搜索支持量；`ownership` 可以提供黑白归属预测的区域比较。它们仍需规则核验和反事实验证，才能支持自然语言棋理。当前探针尚未实现这部分讲解流程。
+`pv` 和 `pvVisits` 可以提供变化图与逐手搜索支持量；`ownership` 可以提供黑白归属预测的区域比较。它们还需结合规则核验和反事实验证，才能支持自然语言棋理。本报告测试的早期探针只取得数据，没有实现后续原型中的讲解流程。
 
-`pv` and `pvVisits` can support variation diagrams and show search support at each step; `ownership` can support regional comparisons of predicted Black and White ownership. Rule checks and counterfactual verification are still needed before these fields can support natural-language Go reasoning. The current probe does not implement that explanation workflow.
+`pv` and `pvVisits` can support variation diagrams and show search support at each step; `ownership` can support regional comparisons of predicted Black and White ownership. These fields need rule checks and counterfactual verification to support natural-language Go reasoning. The early probe tested in this report collected data without the explanation workflow implemented in the later prototype.
 
 ## 测得时长与适用范围 / Timings and Scope
 
