@@ -51,11 +51,25 @@ Later moves in an actual searched variation can receive their own role explanati
 
 A recorded-move explanation starts from the position immediately before that move; an AI-choice explanation starts from the position selected when the request is made. Popup playback uses the exact board snapshots saved with that result. Each curve point comes from a separate search of that position and keeps the explained player's perspective fixed. After selecting a different KaTrain node, an existing result still belongs to its original position; start a new request for the new position.
 
+## 界面与落子手感 / Interface and stone placement
+
+插件同时更换 KaTrain 主窗口的外观，功能与快捷键不变：棋盘是一块带厚度和投影的木板，棋子有高光和落影；按钮凸起、按下会下沉；计时器和曲线嵌在凹槽里；当前执棋方的卡片抬起并描金边；顶部的显示开关改为亮起的标签；底部导航收进一条悬浮栏。讲解弹窗使用同一套配色和控件。
+
+The plugin also restyles KaTrain's main window; features and shortcuts are unchanged. The board is a wooden slab with thickness and a cast shadow, stones have highlights and their own shadows, buttons are raised and go down when pressed, the clock and graph sit in wells, the card of the player to move is lifted and outlined, the display toggles at the top become lit chips, and navigation sits in a floating bar. The explanation popup uses the same palette and controls.
+
+原版 KaTrain 在松开鼠标后要等后台线程处理落子、再过一次 50 毫秒的重绘延时，棋子才出现。插件在松开鼠标的同一刻先把棋子画出来并播放落子声，随后由 KaTrain 的正式结果接管；如果这一手不合法（如打劫、自杀），预先画出的棋子会立即撤掉。重绘延时也取消了，短时间内的重复刷新会合并成一次。
+
+In stock KaTrain a stone appears only after a worker thread has handled the move and a further 50 ms redraw delay has passed. The plugin draws the stone and plays the sound at the moment the mouse is released, and KaTrain's own result then takes over; if the move turns out to be illegal (ko, suicide) the early stone is removed at once. The redraw delay is removed and bursts of refreshes are merged into one.
+
+外观集中在三处：`plugins/katrain/skin.py`（配色、棋盘绘制、落子响应）、`scripts/katrain_gui_patch.py`（对 `gui.kv` 的逐项替换）和 `scripts/build_skin_assets.py`（生成棋盘、棋子、阴影图片）。卸载插件即恢复原版界面。
+
+The look lives in three places: `plugins/katrain/skin.py` (palette, board drawing, placement response), `scripts/katrain_gui_patch.py` (the itemised replacements made to `gui.kv`) and `scripts/build_skin_assets.py` (renders the board, stone and shadow images). Uninstalling restores the stock interface.
+
 ## 安装与恢复 / Installation and restoration
 
-安装器备份原始 `gui.kv` 并记录安装状态，然后加入固定位置的 KV 导入与界面接入内容，将名称唯一的纯 Python 插件包（面板、桥接和讲解流程模块）放到 KaTrain 的 `_internal` 下。`KaTrain.exe` 本身保持原样。重复安装应通过安装器处理，不要手动叠加 KV 修改。
+安装器备份原始 `gui.kv` 并记录安装状态，然后写入重新设计的界面文件（每一处替换都必须在原文件中恰好匹配一次，否则不修改），将名称唯一的纯 Python 插件包（面板、桥接、界面皮肤、图片和讲解流程模块）放到 KaTrain 的 `_internal` 下。`KaTrain.exe` 本身保持原样。重复安装应通过安装器处理，不要手动叠加 KV 修改。
 
-The installer backs up the original `gui.kv` and records installation state. It adds the pinned KV import and UI hook, and copies a uniquely named pure-Python plugin package (panel, bridge and pipeline modules) beneath KaTrain's `_internal` directory. `KaTrain.exe` remains unchanged. Use the installer for repeated installation instead of manually stacking KV edits.
+The installer backs up the original `gui.kv` and records installation state. It writes the redesigned layout file (every replacement must match the original exactly once, otherwise nothing is changed) and copies a uniquely named pure-Python plugin package (panel, bridge, skin, images and pipeline modules) beneath KaTrain's `_internal` directory. `KaTrain.exe` remains unchanged. Use the installer for repeated installation instead of manually stacking KV edits.
 
 卸载时关闭 KaTrain，并在项目目录运行：
 
@@ -89,6 +103,8 @@ The installed KV and the v1.20.0 source KV have this same hash on this computer.
   The installed executable contains `PyiFrozenFinder` with a filesystem fallback. A new package with a unique name can be imported from `_internal/<package>/__init__.py`; KV can reference its bridge object using `#:import Alias <package>.<attribute>`.
 - KV 导入指令在界面实例建立前执行。导入模块本身应轻量，界面接入需等待对象就绪，例如通过 Kivy `Clock` 调度；不要在导入时直接假设 `app.gui` 已存在。
   KV imports run before UI instances are created. Keep module imports lightweight and wait for the target object before attaching widgets, for example through Kivy `Clock`; do not assume `app.gui` already exists at import time.
+- `tests/fixtures/katrain-1.20.0-gui.kv` 是 KaTrain v1.20.0（MIT 许可）原始界面文件的副本，仅用于验证替换项。
+  `tests/fixtures/katrain-1.20.0-gui.kv` is a copy of KaTrain v1.20.0's original layout file (MIT licensed), used only to verify the replacements.
 - 冻结程序使用 Python 3.11，Kivy 扩展为 `cp311`。桥接代码应兼容 Python 3.11，并复用冻结程序已有模块。不能用 Python 3.12 直接导入这些 Kivy 二进制扩展来验证界面。
   The frozen runtime uses Python 3.11 and Kivy binaries use the `cp311` ABI. Keep bridge code compatible with Python 3.11 and reuse available modules. Directly importing those Kivy binaries into Python 3.12 does not validate the native UI.
 

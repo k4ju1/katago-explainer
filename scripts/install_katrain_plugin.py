@@ -1,9 +1,10 @@
 """Install or remove the reversible KaTrain v1.20.0 explanation plugin.
 安装或卸载可恢复的 KaTrain v1.20.0 着法讲解插件。
 
-The plugin is self-contained once installed: its panel, bridge and the
-explanation pipeline are copied into KaTrain and run inside KaTrain, using
-KaTrain's own KataGo engine. This script is only needed to install, update
+The plugin is self-contained once installed: its panel, bridge, interface
+skin and the explanation pipeline are copied into KaTrain and run inside
+KaTrain, using KaTrain's own KataGo engine. KaTrain's ``gui.kv`` is replaced
+by a restyled copy; the original is kept beside it and restored on uninstall. This script is only needed to install, update
 or remove it.
 """
 
@@ -15,18 +16,16 @@ import sys
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import katrain_gui_patch as gui_patch  # noqa: E402
+
 ORIGINAL_GUI_SHA256 = '0c015263cd52305c9d64812c1d013173e69a4e4a131f40847d9bbe455936e9df'
-MARKER = '# KataGo Explainer native integration v1'
-PLUGIN_FILES = ('__init__.py', 'bridge.py', 'panel.py')
+MARKER = gui_patch.MARKER
+# The panel, the bridge to KaTrain's engine, and the look of the whole window.
+PLUGIN_FILES = ('__init__.py', 'bridge.py', 'panel.py', 'skin.py',
+                'kx_board.png', 'kx_stone_b.png', 'kx_stone_w.png', 'kx_shadow.png')
 # The explanation pipeline, copied beside the plugin so KaTrain needs nothing else.
 CORE_FILES = ('board.py', 'engine.py', 'explanation.py', 'joseki.py', 'service.py', 'sgf.py', 'terms.py')
-IMPORT = '#:import KaTrainExplainerPanel katrain_explainer.panel.KaTrainExplainerPanel'
-ANCHOR = '                        ControlsPanel:\n                            id: controls'
-DOCK = ('                        KaTrainExplainerPanel:\n'
-        '                            id: explainer_panel\n'
-        '                            katrain: root\n'
-        '                            size_hint_y: None\n'
-        '                            height: dp(76)\n')
 
 
 def digest(value):
@@ -36,15 +35,7 @@ def digest(value):
 def patch_gui(original):
     if digest(original) != ORIGINAL_GUI_SHA256:
         raise ValueError('此界面文件与支持的 KaTrain 1.20.0 不符，未修改。 / Unsupported KaTrain UI file; no changes made.')
-    source = original.decode('utf-8')
-    newline = '\r\n' if '\r\n' in source else '\n'
-    normalized = source.replace('\r\n', '\n')
-    if normalized.count(ANCHOR) != 1:
-        raise ValueError('未找到唯一的界面挂载点 / A unique UI insertion point was not found')
-    first_line, rest = normalized.split('\n', 1)
-    patched = first_line + '\n' + MARKER + '\n' + IMPORT + '\n' + rest
-    patched = patched.replace(ANCHOR, DOCK + ANCHOR)
-    return patched.replace('\n', newline).encode('utf-8')
+    return gui_patch.apply(original.decode('utf-8')).encode('utf-8')
 
 
 def install(katrain_dir, python_path=None, project_dir=PROJECT_DIR):
@@ -95,7 +86,7 @@ def install(katrain_dir, python_path=None, project_dir=PROJECT_DIR):
         temporary = gui_path.with_name('gui.kv.explainer-tmp')
         temporary.write_bytes(patched)
         temporary.replace(gui_path)
-        manifest = {'version': 2, 'target': 'KaTrain v1.20.0',
+        manifest = {'version': 3, 'target': 'KaTrain v1.20.0',
                     'original_sha256': digest(original), 'patched_sha256': digest(patched),
                     'files': list(names) + ['settings.json'], 'package': str(package)}
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')

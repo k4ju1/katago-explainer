@@ -1,7 +1,8 @@
 """Exercise installer mutations in fake temporary distributions only.
 
-The compact KV has the pinned insertion structure; its hash is patched for
-these isolated tests. The actual release hash is verified separately.
+The compact KV has the pinned insertion structure; its hash and the list of
+replacements are patched for these isolated tests. The complete redesign is
+checked against a copy of the real KaTrain v1.20.0 layout file.
 No installed executable, UI resource, or Python runtime is changed or launched.
 """
 
@@ -22,7 +23,10 @@ ORIGINAL = ("#:kivy 2.3.0\n<KaTrainGui>:\n"
             "    BoxLayout:\n        BoxLayout:\n            BoxLayout:\n"
             "                BoxLayout:\n                    BoxLayout:\n"
             "                        ControlsPanel:\n"
-            "                            id: controls\n").encode('utf-8')
+            "                            id: controls\n"
+            "        NavigationDrawer:\n").encode('utf-8')
+REAL_GUI = PROJECT_DIR / 'tests' / 'fixtures' / 'katrain-1.20.0-gui.kv'
+DOCK_ONLY = [installer.gui_patch.REPLACEMENTS[-1]]
 
 
 class KaTrainInstallerTests(unittest.TestCase):
@@ -32,6 +36,9 @@ class KaTrainInstallerTests(unittest.TestCase):
         hash_override = patch.object(installer, 'ORIGINAL_GUI_SHA256', installer.digest(ORIGINAL))
         hash_override.start()
         self.addCleanup(hash_override.stop)
+        dock_only = patch.object(installer.gui_patch, 'REPLACEMENTS', DOCK_ONLY)
+        dock_only.start()
+        self.addCleanup(dock_only.stop)
         self.base = Path(self.directory.name)
         self.katrain = self.base / 'FakeKaTrain'
         self.gui = self.katrain / '_internal' / 'katrain' / 'gui.kv'
@@ -42,7 +49,7 @@ class KaTrainInstallerTests(unittest.TestCase):
         self.project = self.base / 'FakeProject'
         self.source = self.project / 'plugins' / 'katrain'
         self.source.mkdir(parents=True)
-        for name in ('__init__.py', 'bridge.py', 'panel.py'):
+        for name in installer.PLUGIN_FILES:
             (self.source / name).write_bytes(f'# fake {name}\n'.encode('utf-8'))
         (self.project / 'explainer').mkdir()
         for name in installer.CORE_FILES:
@@ -57,18 +64,17 @@ class KaTrainInstallerTests(unittest.TestCase):
     def install(self):
         return installer.install(self.katrain, python_path=self.python, project_dir=self.project)
 
-    def test_patch_adds_one_import_and_one_dock(self):
+    def test_patch_adds_imports_and_one_dock(self):
         patched = installer.patch_gui(ORIGINAL)
-        normalized = patched.decode('utf-8').replace('\r\n', '\n')
+        normalized = patched.decode('utf-8')
+        old, new = DOCK_ONLY[0]
+        header = installer.MARKER + '\n' + installer.gui_patch.IMPORTS
         self.assertEqual(normalized.count(installer.MARKER), 1)
-        self.assertEqual(normalized.count(installer.IMPORT), 1)
-        self.assertEqual(normalized.count(installer.DOCK), 1)
-        self.assertEqual(normalized.count(installer.ANCHOR), 1)
-        self.assertLess(normalized.index(installer.IMPORT), normalized.index(installer.DOCK))
-        self.assertLess(normalized.index(installer.DOCK), normalized.index(installer.ANCHOR))
-        restored = normalized.replace(installer.MARKER + '\n' + installer.IMPORT + '\n', '')
-        restored = restored.replace(installer.DOCK, '')
-        self.assertEqual(restored.encode('utf-8'), ORIGINAL)
+        self.assertEqual(normalized.count('KaTrainExplainerPanel:\n'), 1)
+        self.assertEqual(normalized.count('id: controls'), 1)
+        self.assertLess(normalized.index(header), normalized.index('id: explainer_panel'))
+        self.assertLess(normalized.index('id: explainer_panel'), normalized.index('id: controls'))
+        self.assertEqual(normalized.replace(header, '').replace(new, old).encode('utf-8'), ORIGINAL)
 
     def test_reinstall_is_idempotent_and_original_backup_stays_intact(self):
         first = self.install()
@@ -106,7 +112,7 @@ class KaTrainInstallerTests(unittest.TestCase):
         self.assertNotIn('python_path', settings)
         self.assertNotIn('backend_url', settings)
         manifest = json.loads(self.manifest.read_text(encoding='utf-8'))
-        self.assertEqual(manifest['version'], 2)
+        self.assertEqual(manifest['version'], 3)
         installer.uninstall(self.katrain)
         for name in installer.PLUGIN_FILES + installer.CORE_FILES:
             self.assertFalse((self.package / name).exists(), name)
@@ -212,6 +218,43 @@ class KaTrainInstallerTests(unittest.TestCase):
         self.assertEqual((self.package / 'bridge.py').read_bytes(), bridge_before)
         self.assertEqual(self.backup.read_bytes(), ORIGINAL)
         self.assertEqual(installer.uninstall(self.katrain)['status'], 'uninstalled')
+
+
+class RealLayoutTests(unittest.TestCase):
+    """The redesign against KaTrain v1.20.0's actual layout file."""
+
+    def setUp(self):
+        self.lf = REAL_GUI.read_bytes().replace(b'\r\n', b'\n')
+        self.crlf = self.lf.replace(b'\n', b'\r\n')
+
+    def test_fixture_is_the_pinned_release_file(self):
+        self.assertEqual(installer.digest(self.crlf), installer.ORIGINAL_GUI_SHA256)
+
+    def test_every_replacement_applies_once_and_line_endings_are_kept(self):
+        patched = installer.patch_gui(self.crlf).decode('utf-8')
+        self.assertNotIn('\n', patched.replace('\r\n', ''))
+        text = patched.replace('\r\n', '\n')
+        for old, new in installer.gui_patch.REPLACEMENTS:
+            self.assertEqual(text.count(new), 1, new.splitlines()[0])
+        self.assertEqual(text.count('id: explainer_panel'), 1)
+        self.assertEqual(text.count('#:import kx katrain_explainer.skin'), 1)
+        self.assertEqual(installer.gui_patch.apply(self.lf.decode('utf-8')), text)
+
+    def test_widget_ids_katrain_relies_on_are_all_kept(self):
+        import re
+        ids = lambda source: sorted(re.findall(r'^\s+id: (\w+)', source, re.M))
+        original = self.lf.decode('utf-8')
+        patched = installer.gui_patch.apply(original)
+        self.assertEqual(ids(patched), sorted(ids(original) + ['explainer_panel']))
+
+    def test_a_changed_layout_is_refused_rather_than_half_styled(self):
+        changed = self.lf.decode('utf-8').replace('<StatsBox>', '<StatsBoxRenamed>')
+        with self.assertRaises(ValueError):
+            installer.gui_patch.apply(changed)
+
+    def test_skin_assets_named_by_the_installer_exist(self):
+        for name in installer.PLUGIN_FILES:
+            self.assertTrue((PROJECT_DIR / 'plugins' / 'katrain' / name).is_file(), name)
 
 
 if __name__ == '__main__':

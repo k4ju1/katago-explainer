@@ -21,7 +21,7 @@ from kivy.factory import Factory
 from kivy.graphics import Color, Ellipse, Line, Rectangle, RoundedRectangle
 from kivy.logger import Logger
 from kivy.metrics import dp, sp
-from kivy.properties import NumericProperty, ObjectProperty
+from kivy.properties import ListProperty, NumericProperty, ObjectProperty
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -34,17 +34,19 @@ from kivy.uix.widget import Widget
 from katrain.core.lang import i18n
 from katrain.gui.theme import Theme
 
+from . import skin
 from .bridge import KaTrainBridge
 
 
 INK = (0.12, 0.16, 0.13, 1)
 WOOD = (0.87, 0.73, 0.49, 1)
-GREEN = (0.31, 0.78, 0.53, 1)
-GREEN_DEEP = (0.17, 0.42, 0.30, 1)
-MUTED = (0.69, 0.75, 0.79, 1)
-PANEL = tuple(Theme.BACKGROUND_COLOR)
-CARD = tuple(Theme.BOX_BACKGROUND_COLOR)
-CARD_ACTIVE = tuple(Theme.LIGHTER_BACKGROUND_COLOR)
+GREEN = (0.36, 0.80, 0.56, 1)
+GREEN_DEEP = tuple(skin.ACTION)
+MUTED = tuple(skin.TEXT_DIM)
+PANEL = (0.098, 0.118, 0.150, 1)
+CARD = tuple(skin.SURFACE)
+CARD_ACTIVE = tuple(skin.SURFACE_HIGH)
+KEY = tuple(skin.BUTTON)
 LEVEL_COLORS = {
     "board": (0.38, 0.72, 0.93, 1),
     "search": GREEN,
@@ -166,24 +168,72 @@ def _wrap_label(text, font_size=None, color=None, bold=False):
 
 
 class RoundedBox(BoxLayout):
-    """A card: rounded background with an optional coloured stripe on the left."""
+    """A raised card: shadow underneath, lit from above, optional coloured stripe on the left.
 
-    def __init__(self, background=CARD, accent=None, radius=None, **kwargs):
+    `sunken=True` draws a well instead (used for the board caption).
+    """
+
+    def __init__(self, background=CARD, accent=None, radius=None, elevation=0.5, sunken=False, **kwargs):
         super().__init__(**kwargs)
-        self._radius = ds(8) if radius is None else radius
+        self._radius = ds(10) if radius is None else radius
+        self._elevation, self._sunken = (0 if sunken else elevation), sunken
         with self.canvas.before:
+            self._shadow_color, self._shadow = skin.drop_shadow(0, 0, 1, 1, 1, 0, 0.55 * min(1, self._elevation))
             self._background_color = Color(*background)
             self._background = RoundedRectangle(radius=[self._radius])
+            Color(1, 1, 1, 1 if sunken else 0.75)
+            self._gloss = RoundedRectangle(radius=[self._radius], texture=skin.inset() if sunken else skin.gloss())
             self._accent_color = Color(*(accent or (0, 0, 0, 0)))
             self._accent = RoundedRectangle(radius=[self._radius, 0, 0, self._radius])
+            Color(*skin.EDGE)
+            self._edge = Line(width=1)
         self.bind(pos=self._sync, size=self._sync)
 
     def _sync(self, *_args):
+        radius = min(self._radius, self.height / 2)
         self._background.pos, self._background.size = self.pos, self.size
+        self._gloss.pos, self._gloss.size = self.pos, self.size
         self._accent.pos, self._accent.size = self.pos, (ds(4), self.height)
+        self._edge.rounded_rectangle = (self.x, self.y, self.width, self.height, radius)
+        skin.place_shadow(self._shadow, self.x, self.y, self.width, self.height,
+                          ds(11) * self._elevation, ds(3) * self._elevation)
 
     def set_background(self, color):
         self._background_color.rgba = color
+
+
+class KeyButton(ButtonBehavior, Label):
+    """A raised key that goes down when pressed; `background_color` tints it."""
+
+    background_color = ListProperty(list(KEY))
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("font_name", Theme.DEFAULT_FONT)
+        kwargs.setdefault("color", Theme.TEXT_COLOR)
+        super().__init__(**kwargs)
+        with self.canvas.before:
+            self._shadow_color, self._shadow = skin.drop_shadow(0, 0, 1, 1, 1, 0, 0.55)
+            self._face_color = Color(*self.background_color)
+            self._face = RoundedRectangle()
+            self._gloss_color = Color(1, 1, 1, 1)
+            self._gloss = RoundedRectangle(texture=skin.gloss())
+            Color(*skin.EDGE)
+            self._edge = Line(width=1)
+        self.bind(pos=self._sync, size=self._sync, state=self._sync, background_color=self._sync, disabled=self._sync)
+
+    def _sync(self, *_args):
+        down = self.state == "down"
+        radius = min(self.height / 3.4, ds(11))
+        self._face_color.rgba = [channel * (0.86 if down else 1) for channel in self.background_color[:3]] + [1]
+        self._gloss_color.a = 0.25 if self.disabled else (0.45 if down else 1)
+        self.opacity = 0.45 if self.disabled else 1
+        sink = ds(1) if down else 0
+        for shape in (self._face, self._gloss):
+            shape.pos, shape.size, shape.radius = (self.x, self.y - sink), self.size, [radius]
+        self._edge.rounded_rectangle = (self.x, self.y - sink, self.width, self.height, radius)
+        depth = 0.15 if down or self.disabled else 0.9
+        self._shadow_color.a = 0.55 * depth / 0.9 if skin.shadow() is not None else 0
+        skin.place_shadow(self._shadow, self.x, self.y, self.width, self.height, ds(10) * depth, ds(3) * depth)
 
 
 class Card(RoundedBox):
@@ -268,9 +318,15 @@ class SnapshotGoban(Widget):
         latest = _gtp_xy(self._moves[self._ply - 1].get("move"), size) if 0 < self._ply <= len(self._moves) else None
         stars = [3, 9, 15] if size == 19 else [3, 6, 9] if size == 13 else [2, 4, 6] if size == 9 else []
         with self.canvas:
-            Color(*WOOD)
-            RoundedRectangle(pos=(x0, y0), size=(side, side), radius=[ds(6)])
-            Color(0.36, 0.29, 0.17, 0.85)
+            wood = skin.image("kx_board.png")
+            skin.drop_shadow(x0, y0 - ds(5), side, side + ds(5), ds(16), ds(6), 0.7)
+            Color(*((0.52, 0.43, 0.34, 1) if wood else (0.55, 0.44, 0.27, 1)))
+            RoundedRectangle(pos=(x0, y0 - ds(5)), size=(side, side), radius=[ds(7)], texture=wood)
+            Color(*((1, 1, 1, 1) if wood else WOOD))
+            RoundedRectangle(pos=(x0, y0), size=(side, side), radius=[ds(7)], texture=wood)
+            Color(1, 0.96, 0.86, 0.45)
+            Line(points=(x0 + ds(7), y0 + side - 1, x0 + side - ds(7), y0 + side - 1), width=1)
+            Color(0.25, 0.16, 0.07, 0.9)
             for index in range(size):
                 Line(points=(left, bottom + index * unit, left + (size - 1) * unit, bottom + index * unit), width=0.6)
                 Line(points=(left + index * unit, bottom, left + index * unit, bottom + (size - 1) * unit), width=0.6)
@@ -280,11 +336,17 @@ class SnapshotGoban(Widget):
                     Ellipse(pos=(px - ds(1.6), py - ds(1.6)), size=(ds(3.2), ds(3.2)))
             for coords, player in stones.items():
                 px, py = point(*coords)
-                radius = unit * 0.46
-                Color(0, 0, 0, 0.16)
-                Ellipse(pos=(px - radius + ds(1), py - radius - ds(1)), size=(2 * radius, 2 * radius))
-                Color(*(INK if player == "B" else (0.98, 0.97, 0.93, 1)))
-                Ellipse(pos=(px - radius, py - radius), size=(2 * radius, 2 * radius))
+                radius = unit * 0.475
+                texture = skin.image("kx_stone_b.png" if player == "B" else "kx_stone_w.png")
+                if texture is not None:  # the stone fills 88% of its texture; the rest is its shadow
+                    half = radius / 0.88
+                    Color(1, 1, 1, 1)
+                    Rectangle(pos=(px - half, py - half), size=(2 * half, 2 * half), texture=texture)
+                else:
+                    Color(0, 0, 0, 0.16)
+                    Ellipse(pos=(px - radius + ds(1), py - radius - ds(1)), size=(2 * radius, 2 * radius))
+                    Color(*(INK if player == "B" else (0.98, 0.97, 0.93, 1)))
+                    Ellipse(pos=(px - radius, py - radius), size=(2 * radius, 2 * radius))
                 number = numbers.get(coords)
                 if number and number[1] == player:
                     _canvas_text(number[0], px, py, unit * 0.48, (1, 1, 1, 1) if player == "B" else INK)
@@ -333,8 +395,10 @@ class WinratePlot(Widget):
             return left + ply / max_ply * (right - left), bottom + (value - low) / (high - low) * (top - bottom)
 
         with self.canvas:
-            Color(*CARD)
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[ds(8)])
+            Color(*skin.SUNKEN)
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[ds(10)])
+            Color(1, 1, 1, 1)
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[ds(10)], texture=skin.inset())
             for index in range(3):
                 value = low + index / 2 * (high - low)
                 _, py = point(0, value)
@@ -382,8 +446,8 @@ class KaTrainExplainerPanel(BoxLayout):
 
     def __init__(self, **kwargs):
         kwargs.setdefault("orientation", "vertical")
-        kwargs.setdefault("spacing", dp(3))
-        kwargs.setdefault("padding", (dp(6), dp(3)))
+        kwargs.setdefault("spacing", dp(4))
+        kwargs.setdefault("padding", (dp(18), dp(5), dp(20), dp(10)))
         super().__init__(**kwargs)
         self._bridge = None
         self._initialization_error = None
@@ -402,7 +466,16 @@ class KaTrainExplainerPanel(BoxLayout):
         self._tab = "overview"
         self._buttons = []
         self._line_rows = []
-        heading = BoxLayout(size_hint_y=None, height=dp(19), spacing=dp(6))
+        with self.canvas.before:  # the dock is a raised card like the panels below it
+            self._dock_shadow_color, self._dock_shadow = skin.drop_shadow(0, 0, 1, 1, 1, 0, 0.55)
+            Color(*skin.SURFACE)
+            self._dock_face = RoundedRectangle()
+            Color(1, 1, 1, 0.8)
+            self._dock_gloss = RoundedRectangle(texture=skin.gloss())
+            Color(*skin.EDGE)
+            self._dock_edge = Line(width=1)
+        self.bind(pos=self._sync_dock, size=self._sync_dock)
+        heading = BoxLayout(size_hint_y=0.30, spacing=dp(6))
         self._dock_label = self._label("着法讲解 / Move explanation", sp(12), color=MUTED)
         self._dock_label.halign = "left"
         self._dock_label.bind(size=lambda widget, size: setattr(widget, "text_size", size))
@@ -412,20 +485,33 @@ class KaTrainExplainerPanel(BoxLayout):
         heading.add_widget(self._dock_label)
         heading.add_widget(self._dock_status)
         self.add_widget(heading)
-        actions = BoxLayout(spacing=dp(5))
+        actions = BoxLayout(size_hint_y=0.70, spacing=dp(8))
         initial_labels = dock_button_labels(getattr(App.get_running_app(), "language", "en"))
-        self._actual_button = self._button(initial_labels[0], lambda *_: self.start_analysis("actual"), font_size=sp(12))
-        self._ai_button = self._button(initial_labels[1], lambda *_: self.start_analysis("ai"), font_size=sp(12))
+        self._actual_button = self._button(initial_labels[0], lambda *_: self.start_analysis("actual"),
+                                           font_size=sp(12), background_color=list(skin.ACTION))
+        self._ai_button = self._button(initial_labels[1], lambda *_: self.start_analysis("ai"),
+                                       font_size=sp(12), background_color=list(skin.ACTION))
         self._reopen_button = self._button("↗", lambda *_: self._open_viewer(), font_size=sp(14),
-                                           size_hint_x=None, width=dp(34), disabled=True)
+                                           size_hint_x=None, width=dp(40), disabled=True)
         for button in (self._actual_button, self._ai_button, self._reopen_button):
-            button.bind(height=lambda widget, height: setattr(widget, "font_size", max(sp(12), height * 0.36)))
+            button.bind(height=lambda widget, height: setattr(widget, "font_size", max(sp(12), height * 0.40)))
+        self._reopen_button.bind(height=lambda widget, height: setattr(widget, "width", height))
+        for label in (self._dock_label, self._dock_status):
+            label.bind(height=lambda widget, height: setattr(widget, "font_size", max(sp(11), height * 0.62)))
         actions.add_widget(self._actual_button)
         actions.add_widget(self._ai_button)
         actions.add_widget(self._reopen_button)
         self.add_widget(actions)
         # app.gui is assigned after the enclosing KaTrainGui is constructed.
         Clock.schedule_once(self._resolve_gui, 0)
+
+    def _sync_dock(self, *_args):
+        x, y, width, height = self.x + dp(8), self.y + dp(2), self.width - dp(18), self.height - dp(4)
+        radius = dp(11)
+        for shape in (self._dock_face, self._dock_gloss):
+            shape.pos, shape.size, shape.radius = (x, y), (width, height), [radius]
+        self._dock_edge.rounded_rectangle = (x, y, width, height, radius)
+        skin.place_shadow(self._dock_shadow, x, y, width, height, dp(11), dp(3))
 
     @staticmethod
     def _label(text, font_size=None, height=None, color=None):
@@ -436,9 +522,7 @@ class KaTrainExplainerPanel(BoxLayout):
         return Label(**kwargs)
 
     def _button(self, text, callback, font_size=None, **kwargs):
-        kwargs.setdefault("background_color", Theme.BOX_BACKGROUND_COLOR)
-        button = Button(text=text, font_name=Theme.DEFAULT_FONT, font_size=font_size or fs(14),
-                        background_normal="", background_down="", **kwargs)
+        button = KeyButton(text=text, font_size=font_size or fs(14), **kwargs)
         button.bind(on_release=callback)
         return button
 
@@ -606,7 +690,7 @@ class KaTrainExplainerPanel(BoxLayout):
         for button in self._buttons:
             playback.add_widget(button)
         left.add_widget(playback)
-        self._caption = caption = RoundedBox(orientation="vertical", size_hint_y=None, height=ds(76),
+        self._caption = caption = RoundedBox(orientation="vertical", size_hint_y=None, height=ds(76), elevation=0.4,
                              padding=(ds(12), ds(8)), spacing=ds(2))
         self._step_label = self._label("", fs(14), height=ds(22))
         self._step_label.halign = "left"
@@ -763,7 +847,7 @@ class KaTrainExplainerPanel(BoxLayout):
             button = self._tab_buttons[key]
             button.text = self._t(zh, en)
             button.disabled = not usable
-            button.background_color = GREEN_DEEP if key == self._tab and usable else Theme.BOX_BACKGROUND_COLOR
+            button.background_color = GREEN_DEEP if key == self._tab and usable else KEY
         self._branch_row.clear_widgets()
         for index, branch in enumerate(self._branches()):
             text = (self._t("讲解的这手 ", "Explained: ") if branch.get("id") == "selected"
