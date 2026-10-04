@@ -1,8 +1,8 @@
 # 使用说明 / User Guide
 
-此页说明独立网页测试入口。日常在 KaTrain 中使用时，请从 `START_KATRAIN_EXPLAINER.cmd` 启动；安装、恢复与原生弹窗操作见 [KaTrain 原生集成说明](KATRAIN_PLUGIN.md)。
+此页说明可选的开发测试页，KaTrain 插件本身不需要它。日常在 KaTrain 中使用时，请从 `START_KATRAIN_EXPLAINER.cmd` 启动；安装、恢复与原生弹窗操作见 [KaTrain 原生集成说明](KATRAIN_PLUGIN.md)。
 
-This page covers standalone web testing. For use inside KaTrain, start `START_KATRAIN_EXPLAINER.cmd`; see the [native integration guide](KATRAIN_PLUGIN.md) for installation, restoration, and popup controls.
+This page covers the optional development test page; the KaTrain plugin does not need it. For use inside KaTrain, start `START_KATRAIN_EXPLAINER.cmd`; see the [native integration guide](KATRAIN_PLUGIN.md) for installation, restoration, and popup controls.
 
 ## 本机启动 / Start on this computer
 

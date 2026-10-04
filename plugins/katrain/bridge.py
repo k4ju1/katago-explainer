@@ -1,9 +1,12 @@
-"""Read-only KaTrain v1.20 bridge to the local explanation service.
+"""Read-only KaTrain v1.20 bridge that runs the explanation inside KaTrain.
 
-No Kivy import is required. The panel marshals worker callbacks through Clock.
-The existing KaTrain tree, current node, engine analyses, and SGF files are never
-edited by this bridge. Returned snapshots are exact legally replayed positions,
-including captures, displayed by the panel inside the original app.
+The explanation pipeline is imported as a library and its searches are sent to
+the KataGo engine KaTrain already has running: no local server, no second
+KataGo process and no extra Python runtime. No Kivy import is required; the
+panel marshals worker callbacks through Clock. The existing KaTrain tree,
+current node, engine analyses, and SGF files are never edited by this bridge.
+Returned snapshots are exact legally replayed positions, including captures,
+displayed by the panel inside the original app.
 """
 from __future__ import annotations
 
@@ -13,12 +16,10 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
-import subprocess
+import queue
 import threading
 import time
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from types import SimpleNamespace
 import uuid
 
 
@@ -30,8 +31,137 @@ class BridgeError(ValueError):
     pass
 
 
-class BackendUnavailable(BridgeError):
+class EngineUnavailable(BridgeError):
     pass
+
+
+QUERY_SECONDS = 40
+EXTRA_SECONDS_PER_QUERY = 5
+RUN_SECONDS = 150
+# Explanation searches go ahead of KaTrain's background analysis of other moves.
+QUERY_PRIORITY = 1000
+
+
+def _core():
+    """The pipeline modules: beside this file when installed, else the repository package."""
+    try:
+        from . import service, sgf
+    except ImportError:
+        from explainer import service, sgf
+    return service, sgf
+
+
+class KaTrainEngineClient:
+    """Send the pipeline's positions through KaTrain's own KataGo engine.
+
+    It offers the `query` / `query_many` interface of the standalone client,
+    so the same pipeline runs unchanged. KaTrain's reader thread delivers the
+    answers; this client only waits for them, with a bound.
+    """
+
+    def __init__(self, katrain, total_seconds=RUN_SECONDS):
+        self.katrain = katrain
+        self.version = "KataGo (KaTrain engine)"
+        self.cleanup = {"method": "katrain_engine", "kept_alive": True, "process_stopped": False}
+        self.deadline = time.monotonic() + total_seconds
+
+    def engine(self):
+        engine = getattr(self.katrain, "engine", None)
+        if engine is None or not callable(getattr(engine, "send_query", None)):
+            raise EngineUnavailable("KaTrain 的 KataGo 引擎尚未启动。 / KaTrain's KataGo engine is not running yet.")
+        check = getattr(engine, "check_alive", None)
+        if callable(check) and not check():
+            raise EngineUnavailable("KaTrain 的 KataGo 引擎已停止，请先在 KaTrain 中恢复引擎。 / KaTrain's KataGo engine has stopped; restore it in KaTrain first.")
+        return engine
+
+    @staticmethod
+    def _payload(engine, game, request):
+        forced, actor = request.get("forced_move"), request.get("actor")
+        if forced and actor not in ("B", "W"):
+            raise ValueError("限制候选时必须指定执棋方 / A forced query requires actor B or W")
+        ownership = bool(request.get("ownership", True))
+        settings = dict(getattr(engine, "override_settings", None) or {})
+        settings.update({"reportAnalysisWinratesAs": "BLACK", "wideRootNoise": 0.0})
+        payload = {
+            "initialStones": game.initial_stones, "initialPlayer": game.initial_player,
+            "moves": request["moves"], "rules": game.rules, "komi": game.komi,
+            "boardXSize": game.board_size, "boardYSize": game.board_size,
+            "maxVisits": request["visits"], "includeOwnership": ownership,
+            "includeMovesOwnership": ownership, "includePVVisits": True, "analysisPVLen": 8,
+            "priority": getattr(engine, "base_priority", 0) + QUERY_PRIORITY,
+            "overrideSettings": settings,
+        }
+        if forced:
+            payload["allowMoves"] = [{"player": actor, "moves": [forced], "untilDepth": 1}]
+        return payload
+
+    def query(self, game, moves, visits, forced_move=None, actor=None):
+        return self.query_many(game, [{"moves": moves, "visits": visits,
+                                       "forced_move": forced_move, "actor": actor}])[0]
+
+    def query_many(self, game, requests):
+        if not requests:
+            return []
+        engine = self.engine()
+        answers, callbacks = queue.Queue(), []
+        allowance = QUERY_SECONDS + EXTRA_SECONDS_PER_QUERY * (len(requests) - 1)
+        deadline = min(time.monotonic() + allowance, self.deadline)
+        for index, request in enumerate(requests):
+            def done(analysis, partial_result=False, index=index):
+                if not partial_result:
+                    answers.put((index, analysis, None))
+
+            def failed(analysis, index=index):
+                answers.put((index, None, analysis))
+
+            callbacks.append(done)
+            engine.send_query(self._payload(engine, game, request), done, failed)
+        results = {}
+        try:
+            while len(results) < len(requests):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise queue.Empty
+                index, analysis, error = answers.get(timeout=remaining)
+                if error is not None:
+                    detail = error.get("error", error) if isinstance(error, dict) else error
+                    raise ValueError("KataGo: " + str(detail))
+                if not analysis.get("moveInfos") or "rootInfo" not in analysis:
+                    raise ValueError("引擎没有返回可用着法 / Engine returned no usable moves")
+                results[index] = analysis
+        except queue.Empty:
+            self._abandon(engine, callbacks)
+            raise TimeoutError("等待 KaTrain 引擎超时；如果刚开了新对局或引擎正忙，请稍后重试。 / Timed out waiting for KaTrain's engine; retry if a new game was started or the engine is busy.") from None
+        except Exception:
+            self._abandon(engine, callbacks)
+            raise
+        return [results[index] for index in range(len(requests))]
+
+    @staticmethod
+    def _abandon(engine, callbacks):
+        """Best effort: stop searches whose answers nobody will read."""
+        try:
+            with engine.thread_lock:
+                mine = [query_id for query_id, entry in engine.queries.items() if entry[0] in callbacks]
+            for query_id in mine:
+                engine.terminate_query(query_id)
+        except Exception:
+            pass
+
+
+class _KaTrainEngineSession:
+    """Pool-shaped adapter: each explanation borrows KaTrain's engine and returns it running."""
+
+    def __init__(self, katrain):
+        self.katrain = katrain
+
+    def acquire(self, _output_dir):
+        client = KaTrainEngineClient(self.katrain)
+        client.engine()
+        return client
+
+    def release(self, _client, failed=False):
+        return None
 
 
 def _escape(value):
@@ -128,72 +258,19 @@ class KaTrainBridge:
             config_path = Path(__file__).with_name("settings.json")
             settings = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
         self.settings = settings
-        base_url = settings.get("backend_url", "http://127.0.0.1:8788")
-        address = urlsplit(base_url)
-        if (address.scheme != "http" or address.hostname not in ("127.0.0.1", "localhost")
-                or address.username or address.password or address.path not in ("", "/")
-                or address.query or address.fragment):
-            raise BridgeError("讲解服务必须在本机运行。 / The explanation service must run locally.")
-        self.katrain, self.base_url = katrain, base_url.rstrip("/")
+        self.katrain = katrain
         self._contexts = OrderedDict()
         self._busy = False
         self._lock = threading.Lock()
 
-    def _request(self, path, payload=None, timeout=10):
-        encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8") if payload is not None else None
-        request = Request(self.base_url + path, data=encoded,
-                          headers={"Content-Type": "application/json"} if encoded else {})
+    def _model_name(self):
         try:
-            with urlopen(request, timeout=timeout) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except HTTPError as error:
-            try:
-                message = json.loads(error.read().decode("utf-8")).get("error")
-            except (ValueError, UnicodeError):
-                message = None
-            if isinstance(message, dict):
-                raise BridgeError(message.get("zh", "") + " / " + message.get("en", "")) from error
-            raise BridgeError("本机讲解服务拒绝了请求。 / The local explanation service rejected the request.") from error
-        except (URLError, TimeoutError, OSError) as error:
-            raise BackendUnavailable("无法连接本机讲解服务。 / Cannot reach the local explanation service.") from error
-        except (json.JSONDecodeError, UnicodeError) as error:
-            raise BridgeError("本机端口未返回兼容的讲解数据，可能被其他应用占用。 / The local port returned incompatible data and may belong to another application.") from error
-
-    def _ensure_backend(self):
-        def verify(state):
-            if not isinstance(state, dict) or state.get("application") != "katago-explainer" or state.get("api_version") != 1:
-                raise BridgeError("本机端口被其他应用占用，请调整讲解插件的端口设置。 / The local port belongs to another application; change the explainer port setting.")
-        deadline = time.monotonic() + 12
-        try:
-            verify(self._request("/api/state", timeout=1))
-            return
-        except BackendUnavailable:
-            pass
-        project = Path(self.settings.get("project_path", ""))
-        python = Path(self.settings.get("python_path", ""))
-        if not project.is_dir() or not (project / "explainer" / "server.py").is_file() or not python.is_file():
-            raise BridgeError("增强版的讲解路径配置缺失，请重新运行安装入口。 / The enhanced app's explainer paths are missing; run its installer again.")
-        log_path = project / "runs" / "plugin-backend.log"
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        port = urlsplit(self.base_url).port or 80
-        with log_path.open("ab") as backend_log:
-            self._backend_process = subprocess.Popen(
-                [str(python), "-m", "explainer.server", "--port", str(port)], cwd=str(project),
-                stdin=subprocess.DEVNULL, stdout=backend_log, stderr=backend_log,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
-        while time.monotonic() < deadline:
-            try:
-                verify(self._request("/api/state", timeout=max(.05, min(1, deadline - time.monotonic()))))
-                return
-            except BackendUnavailable:
-                threading.Event().wait(.35)
-            if self._backend_process.poll() is not None:
-                raise BridgeError("讲解服务未能启动，请查看 runs/plugin-backend.log；其他程序不会被关闭。 / The explainer did not start; check runs/plugin-backend.log. Other applications were left running.")
-        raise BridgeError("讲解服务启动超时，请查看 runs/plugin-backend.log。 / The explainer startup timed out; check runs/plugin-backend.log.")
+            return Path(str(self.katrain.config("engine/model") or "KaTrain model")).name
+        except Exception:
+            return "KaTrain model"
 
     def analyze(self, choice, on_progress, on_result, on_error):
-        """Capture on the UI thread, then perform HTTP work on a daemon worker.
+        """Capture on the UI thread, then run the pipeline on a daemon worker.
 
         Callbacks run on the worker: on_progress(message, completed, total),
         on_result(result), on_error({zh,en}). The panel schedules UI updates.
@@ -212,36 +289,22 @@ class KaTrainBridge:
 
         def worker():
             try:
-                self._ensure_backend()
-                on_progress(bilingual("读取 KaTrain 当前分支…", "Reading the selected KaTrain branch…"), 0, 15)
-                imported = self._request("/api/game", {"sgf": context.sgf})
-                game_id = imported["game"]["id"]
-                job_id = self._request("/api/analyze", {"game_id": game_id, "move_index": context.move_index,
-                                                       "choice": context.choice})["job_id"]
-                deadline, last_progress = time.monotonic() + 180, None
-                while time.monotonic() < deadline:
-                    job = self._request("/api/jobs/" + job_id)
-                    progress = job.get("progress") or {}
-                    if progress and progress != last_progress:
-                        on_progress(progress["message"], progress.get("completed", 0), progress.get("total", 15))
-                        last_progress = progress
-                    if job.get("status") == "complete":
-                        result = job["result"]
-                        token = uuid.uuid4().hex
-                        result["_katrain_bridge_token"] = token
-                        with self._lock:
-                            self._contexts[token] = context
-                            while len(self._contexts) > 6:
-                                self._contexts.popitem(last=False)
-                        if not self.is_current(result):
-                            raise BridgeError("生成期间棋盘位置已改变，请在新位置重新讲解。 / The position changed during analysis; request an explanation for the new position.")
-                        on_result(result)
-                        return
-                    if job.get("status") == "error":
-                        on_error(job.get("error") or bilingual("讲解失败。", "Explanation failed."))
-                        return
-                    threading.Event().wait(.7)
-                raise BridgeError("等待讲解超时，请稍后重试。 / Explanation timed out; try again later.")
+                service, sgf = _core()
+                on_progress(bilingual("读取 KaTrain 当前分支…", "Reading the selected KaTrain branch…"), 0, service.PHASES)
+                record = sgf.parse_sgf(context.sgf)
+                result = service.explain_move(
+                    record, "katrain", context.move_index, context.choice,
+                    SimpleNamespace(model=Path(self._model_name())), None, on_progress,
+                    pool=_KaTrainEngineSession(self.katrain))
+                token = uuid.uuid4().hex
+                result["_katrain_bridge_token"] = token
+                with self._lock:
+                    self._contexts[token] = context
+                    while len(self._contexts) > 6:
+                        self._contexts.popitem(last=False)
+                if not self.is_current(result):
+                    raise BridgeError("生成期间棋盘位置已改变，请在新位置重新讲解。 / The position changed during analysis; request an explanation for the new position.")
+                on_result(result)
             except Exception as error:
                 on_error(bilingual(str(error), str(error)))
             finally:

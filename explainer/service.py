@@ -234,6 +234,7 @@ def explain_move(game, game_id, move_index, choice, settings, output_dir, progre
     result['cleanup'] = engine.cleanup
     if not (engine.cleanup.get('process_stopped') or engine.cleanup.get('kept_alive')):
         raise RuntimeError('引擎未正常停止，请检查运行日志 / Engine did not stop; check the run log')
-    (Path(output_dir) / 'explanation.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    if output_dir is not None:  # the KaTrain plugin keeps results in memory only
+        (Path(output_dir) / 'explanation.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     progress(text('讲解已生成，可以逐步播放变化。', 'Explanation ready. You can replay the continuation.'), PHASES, PHASES)
     return result

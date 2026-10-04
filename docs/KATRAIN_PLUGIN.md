@@ -1,4 +1,8 @@
-# KaTrain 原生集成 / Native KaTrain integration
+# KaTrain 插件 / KaTrain plugin
+
+插件安装后完全在 KaTrain 内运行：讲解面板、桥接代码和讲解流程都复制到 KaTrain 的 `_internal/katrain_explainer`，搜索请求直接发给 KaTrain 自己的 KataGo 引擎（使用 KaTrain 当前配置的模型）。不启动本机服务，不启动第二个 KataGo 进程，也不依赖另外的 Python 环境。讲解搜索的优先级高于 KaTrain 的后台分析；引擎未启动或已停止时，弹窗会直接说明。
+
+Once installed the plugin runs entirely inside KaTrain: the panel, the bridge and the explanation pipeline are copied to KaTrain's `_internal/katrain_explainer`, and searches go straight to KaTrain's own KataGo engine (with the model KaTrain is configured to use). No local service, no second KataGo process and no separate Python runtime are involved. Explanation searches take priority over KaTrain's background analysis; if the engine is not running, the popup says so.
 
 这是面向 **KaTrain v1.20.0 Windows 文件夹版**的实验性扩展。它借助外部 `gui.kv` 资源与冻结程序的 Python 导入机制接入讲解面板，并非 KaTrain 官方提供的稳定插件 API。
 
@@ -16,16 +20,16 @@ The saved native-request result explains the played move C8 on a 9×9 board in 1
 
 1. 首次安装或卸载前，先关闭正在运行的 KaTrain。集成启动器会调用安装器；需要单独安装时，在项目目录运行 `python scripts/install_katrain_plugin.py`。
    Close KaTrain before installing or uninstalling. The integrated launcher calls the installer. To install separately, run `python scripts/install_katrain_plugin.py` from the project folder.
-2. 双击项目根目录的 `START_KATRAIN_EXPLAINER.cmd` 启动集成入口。扩展使用本机 `127.0.0.1:8788` 上的讲解服务，并按需自动启动后台服务。
-   Double-click `START_KATRAIN_EXPLAINER.cmd` in the project root. The extension uses the local explanation service at `127.0.0.1:8788` and starts the backend automatically when needed.
-3. 在 KaTrain 中打开棋谱、选择一手，使用原生讲解面板解释这手实战着法；也可以解释当前局面的 AI 一选。当前节点的真实历史直接传给讲解服务，无需再次上传 SGF。
-   Open a game and select a move in KaTrain. Use the native explanation panel to explain that recorded move, or request the AI first choice for the current position. The selected node's real history is passed directly to the service; no SGF re-upload is needed.
-4. 等待 KataGo 分析，在 KaTrain 的原生弹窗中阅读中英讲解，切换候选分支，逐手播放变化并查看曲线。
-   Wait for KataGo analysis, then read the bilingual explanation in a native KaTrain popup. Switch candidate branches, advance through the variation, and inspect its evaluation curve.
+2. 双击项目根目录的 `START_KATRAIN_EXPLAINER.cmd`：它安装或更新插件并打开 KaTrain。安装一次之后也可以直接打开 KaTrain；修改插件代码后再运行一次即可更新。
+   Double-click `START_KATRAIN_EXPLAINER.cmd` in the project root: it installs or updates the plugin and opens KaTrain. After one install KaTrain can also be opened directly; run the launcher again to pick up plugin changes.
+3. 在 KaTrain 中打开棋谱、选择一手，使用原生讲解面板解释这手实战着法；也可以解释当前局面的 AI 一选。当前节点的真实历史直接交给插件内的讲解流程，无需再次上传 SGF。
+   Open a game and select a move in KaTrain. Use the native explanation panel to explain that recorded move, or request the AI first choice for the current position. The selected node's real history goes straight to the plugin's pipeline; no SGF re-upload is needed.
+4. 等待 KataGo 分析。弹窗顶部是结论标签（基本等价、略亏、小失误等）；左侧是棋盘、分支切换、逐手播放、当前一步的说明和胜率曲线；右侧分为“结论、依据、变化、定式·术语、边界”五个标签页。点击带有“点击看第 N 手”的依据，或“变化”里的任意一手，棋盘会跳到那一步；键盘 ← → 逐手、Home/End 到两端、空格播放。右侧面板的 ↗ 按钮可重新打开上一次讲解。
+   Wait for KataGo analysis. The popup header shows the verdict tag (practically equal, slightly worse, inaccuracy, …); the left side has the board, branch switch, playback, a note for the current step and the win-rate curve; the right side has five tabs: verdict, evidence, line, joseki and terms, limits. Clicking a reason marked “click to show step N”, or any step in the line tab, moves the board there; ← → step, Home/End jump to the ends and Space plays. The ↗ button in the side dock reopens the last explanation.
 
-右侧两个讲解按钮跟随 KaTrain 当前选择的界面语言。弹窗提供独立的中文／英文切换；切换语言时，搜索结果、棋盘快照和数值不变。
+右侧两个讲解按钮跟随 KaTrain 当前选择的界面语言。弹窗的语言默认跟随 KaTrain（简体、繁体显示中文，其他语言显示英文），也提供独立的中文／英文切换；切换语言时，搜索结果、棋盘快照和数值不变。
 
-The two dock buttons follow KaTrain's selected interface language. The popup has a separate Chinese/English switch; changing language retains the same search results, board snapshots, and values.
+The two dock buttons follow KaTrain's selected interface language. The popup follows KaTrain's language by default (Chinese for Simplified and Traditional Chinese, English otherwise) and has its own Chinese/English switch; changing language retains the same search results, board snapshots, and values.
 
 19 路局面匹配参考目录中的角部手顺时，弹窗增加“定式关联”和专业术语释义：包括名称、本手角色与有条件的目的说明、参考手顺、出处和上下文说明，★ 标注本次讲解手。真实落子顺序与仅有相同棋形的初始摆子分别标注；参考手顺与引擎候选变化分开。当前收录七项精选参考，包括秀策尖、尖顶、托退和芈氏飞刀的一个外扳分支，支持旋转、镜像与黑白互换；未匹配时不显示该区块。来源与限制见[定式参考说明](JOSEKI_REFERENCES.md)。
 
@@ -49,9 +53,9 @@ A recorded-move explanation starts from the position immediately before that mov
 
 ## 安装与恢复 / Installation and restoration
 
-安装器备份原始 `gui.kv` 并记录安装状态，然后加入固定位置的 KV 导入与界面接入内容，将名称唯一的纯 Python 扩展包放到 KaTrain 的 `_internal` 下。`KaTrain.exe` 本身保持原样。重复安装应通过安装器处理，不要手动叠加 KV 修改。
+安装器备份原始 `gui.kv` 并记录安装状态，然后加入固定位置的 KV 导入与界面接入内容，将名称唯一的纯 Python 插件包（面板、桥接和讲解流程模块）放到 KaTrain 的 `_internal` 下。`KaTrain.exe` 本身保持原样。重复安装应通过安装器处理，不要手动叠加 KV 修改。
 
-The installer backs up the original `gui.kv` and records installation state. It adds the pinned KV import and UI hook, and copies a uniquely named pure-Python extension package beneath KaTrain's `_internal` directory. `KaTrain.exe` remains unchanged. Use the installer for repeated installation instead of manually stacking KV edits.
+The installer backs up the original `gui.kv` and records installation state. It adds the pinned KV import and UI hook, and copies a uniquely named pure-Python plugin package (panel, bridge and pipeline modules) beneath KaTrain's `_internal` directory. `KaTrain.exe` remains unchanged. Use the installer for repeated installation instead of manually stacking KV edits.
 
 卸载时关闭 KaTrain，并在项目目录运行：
 
@@ -88,9 +92,9 @@ The installed KV and the v1.20.0 source KV have this same hash on this computer.
 - 冻结程序使用 Python 3.11，Kivy 扩展为 `cp311`。桥接代码应兼容 Python 3.11，并复用冻结程序已有模块。不能用 Python 3.12 直接导入这些 Kivy 二进制扩展来验证界面。
   The frozen runtime uses Python 3.11 and Kivy binaries use the `cp311` ABI. Keep bridge code compatible with Python 3.11 and reuse available modules. Directly importing those Kivy binaries into Python 3.12 does not validate the native UI.
 
-原生集成与网页入口共用讲解后端和同一证据格式。当前讲解由棋盘规则与证据模板生成；提子、气、连接和打吃可直接重放核对，位置性解读标为推测。主要变化是代表路径，有限预算下的胜率曲线不构成因果证明。深入棋理、语言模型推理和完整评测仍待开发；适用范围与限制见[使用说明](USAGE.md)。
+插件与可选的开发测试页共用同一套讲解流程和证据格式。当前讲解由棋盘规则与证据模板生成；提子、气、连接和打吃可直接重放核对，位置性解读标为推测。主要变化是代表路径，有限预算下的胜率曲线不构成因果证明。深入棋理、语言模型推理和完整评测仍待开发；适用范围与限制见[使用说明](USAGE.md)。
 
-The native integration and web entry share the explanation backend and evidence format. Explanations currently use board rules and evidence templates. Captures, liberties, connections, and atari can be verified through replay; positional interpretations are tentative. Principal variations are representative lines, and finite-budget curves are not causal proof. Deeper Go reasoning, language-model reasoning, and comprehensive evaluation remain future work. See the [User Guide](USAGE.md) for scope and limitations.
+The plugin and the optional development test page share the same pipeline and evidence format. Explanations currently use board rules and evidence templates. Captures, liberties, connections, and atari can be verified through replay; positional interpretations are tentative. Principal variations are representative lines, and finite-budget curves are not causal proof. Deeper Go reasoning, language-model reasoning, and comprehensive evaluation remain future work. See the [User Guide](USAGE.md) for scope and limitations.
 
 定式匹配使用当前节点的实际历史和棋盘状态，不需要另传棋谱。它提供知识参照，不修改 KataGo 一选排序或固定执棋方视角的评估。术语表也不是自动棋形分类器：提子与打吃可由规则核验，先手、厚势等词的释义不能直接证明本局取得了相应效果。当前没有完整定式数据库，也没有语言模型讲解。
 

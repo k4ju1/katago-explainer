@@ -1,6 +1,4 @@
 """KaTrain plugin bridge invariants, with source-shaped nodes and no GUI/GPU."""
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import threading
 import unittest
@@ -8,7 +6,8 @@ from unittest.mock import Mock, patch
 
 from explainer.board import vertex_to_point
 from explainer.sgf import parse_sgf
-from plugins.katrain.bridge import BackendUnavailable, BridgeError, KaTrainBridge, export_position
+from plugins.katrain.bridge import (BridgeError, EngineUnavailable, KaTrainBridge, KaTrainEngineClient,
+                                    export_position)
 
 
 class Move:
@@ -128,7 +127,8 @@ class ExportTests(unittest.TestCase):
 class BridgeTests(unittest.TestCase):
     def app(self):
         game, _ = game_with_branch()
-        return SimpleNamespace(game=game, board_gui=Mock())
+        return SimpleNamespace(game=game, board_gui=Mock(), engine=None,
+                               config=lambda key, default=None: "C:/models/kata-model.bin.gz")
 
     def test_snapshot_preview_does_not_change_native_tree_or_board(self):
         app = self.app()
@@ -147,68 +147,157 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(BridgeError, "position changed"):
             bridge.show_step(result, "selected", 0)
 
-    def test_analyze_posts_sgf_and_correct_actual_index_and_returns_on_worker(self):
+    def test_analyze_runs_the_pipeline_on_katrains_engine_without_a_server(self):
         app, finished, observed = self.app(), threading.Event(), {}
+        app.engine = FakeKaTrainEngine()
         bridge = KaTrainBridge(app, {})
-        result = {"selected_move": "D16", "branches": []}
-        bridge._ensure_backend = Mock()
-        bridge._request = Mock(side_effect=[{"game": {"id": "game"}}, {"job_id": "job"},
-                                           {"status": "complete", "result": result}])
+
         def success(value):
             observed.update(result=value, thread=threading.current_thread())
             finished.set()
-        self.assertTrue(bridge.analyze("actual", lambda *args: None, success, lambda error: finished.set()))
-        self.assertTrue(finished.wait(2))
-        imported_sgf = bridge._request.call_args_list[0].args[1]["sgf"]
-        self.assertEqual(len(parse_sgf(imported_sgf).moves), 3)
-        self.assertEqual(bridge._request.call_args_list[1].args[1], {"game_id": "game", "move_index": 2, "choice": "actual"})
+
+        def failure(error):
+            observed.update(error=error)
+            finished.set()
+
+        with patch("urllib.request.urlopen") as network, patch("subprocess.Popen") as process:
+            self.assertTrue(bridge.analyze("actual", lambda *args: None, success, failure))
+            self.assertTrue(finished.wait(5))
+            network.assert_not_called()
+            process.assert_not_called()
+        self.assertNotIn("error", observed)
+        result = observed["result"]
+        self.assertEqual(result["selected_move"], "D16")
+        self.assertEqual(result["move_index"], 2)
+        self.assertEqual(result["cleanup"]["method"], "katrain_engine")
+        self.assertEqual(result["engine"]["model"], "kata-model.bin.gz")
+        self.assertIsNotNone(result["explanation"]["verdict"])
         self.assertIsNot(observed["thread"], threading.current_thread())
-        self.assertTrue(bridge.is_current(observed["result"]))
+        self.assertTrue(bridge.is_current(result))
+        root = app.engine.sent[0]
+        self.assertEqual(root["moves"], [["B", "Q16"], ["W", "D4"]])
+        self.assertEqual(root["rules"], "japanese")
+        self.assertEqual(root["komi"], 6.5)
+        self.assertEqual(root["overrideSettings"]["reportAnalysisWinratesAs"], "BLACK")
+        self.assertEqual(root["priority"], 7 + 1000)
+        self.assertNotIn("id", root)  # KaTrain numbers its own queries
+        forced = [query["allowMoves"][0]["moves"] for query in app.engine.sent if "allowMoves" in query]
+        self.assertIn(["D16"], forced)
 
     def test_navigation_during_analysis_prevents_result_callback(self):
         app, finished, errors, results = self.app(), threading.Event(), [], []
+        app.engine = FakeKaTrainEngine()
+        original = app.engine.send_query
+
+        def navigate_then_send(query, callback, error_callback, **kwargs):
+            if len(app.engine.sent) == 0:
+                app.game.current_node = app.game.current_node.parent
+            original(query, callback, error_callback, **kwargs)
+        app.engine.send_query = navigate_then_send
         bridge = KaTrainBridge(app, {})
-        bridge._ensure_backend = Mock()
-        calls = [{"game": {"id": "game"}}, {"job_id": "job"}]
-        def response(*args, **kwargs):
-            if calls:
-                return calls.pop(0)
-            app.game.current_node = app.game.current_node.parent
-            return {"status": "complete", "result": {}}
-        bridge._request = response
+
         def failure(error):
             errors.append(error)
             finished.set()
         bridge.analyze("actual", lambda *args: None, results.append, failure)
-        self.assertTrue(finished.wait(2))
+        self.assertTrue(finished.wait(5))
         self.assertFalse(results)
         self.assertIn("position changed", errors[0]["en"])
 
-    def test_other_app_port_is_not_started_or_killed(self):
-        bridge = KaTrainBridge(self.app(), {})
-        bridge._request = Mock(return_value={"application": "another-app", "api_version": 1})
-        with patch("plugins.katrain.bridge.subprocess.Popen") as launch:
-            with self.assertRaisesRegex(BridgeError, "another application"):
-                bridge._ensure_backend()
-            launch.assert_not_called()
+    def test_missing_or_stopped_engine_is_reported_without_starting_anything(self):
+        for engine in (None, FakeKaTrainEngine(alive=False)):
+            with self.subTest(engine=engine):
+                app, finished, errors = self.app(), threading.Event(), []
+                app.engine = engine
+                bridge = KaTrainBridge(app, {})
 
-    def test_backend_starts_hidden_with_project_config_and_validates_identity(self):
-        with TemporaryDirectory() as directory:
-            project = Path(directory)
-            (project / "explainer").mkdir()
-            (project / "explainer" / "server.py").touch()
-            python = project / "python.exe"
-            python.touch()
-            bridge = KaTrainBridge(self.app(), {"backend_url": "http://127.0.0.1:8799",
-                                                "project_path": str(project), "python_path": str(python)})
-            bridge._request = Mock(side_effect=[BackendUnavailable("offline"), {"application": "katago-explainer", "api_version": 1}])
-            with patch("plugins.katrain.bridge.subprocess.Popen") as launch:
-                bridge._ensure_backend()
-                launch.assert_called_once()
-                self.assertEqual(launch.call_args.args[0], [str(python), "-m", "explainer.server", "--port", "8799"])
-                self.assertEqual(launch.call_args.kwargs["cwd"], str(project))
-                self.assertIn("creationflags", launch.call_args.kwargs)
-                self.assertTrue((project / "runs" / "plugin-backend.log").is_file())
+                def failure(error):
+                    errors.append(error)
+                    finished.set()
+                with patch("subprocess.Popen") as process:
+                    bridge.analyze("ai", lambda *args: None, lambda result: finished.set(), failure)
+                    self.assertTrue(finished.wait(5))
+                    process.assert_not_called()
+                self.assertIn("engine", errors[0]["en"])
+                # A failed run must not leave the bridge locked.
+                self.assertFalse(bridge._busy)
+
+
+class FakeKaTrainEngine:
+    """KaTrain's engine surface: queued queries, answers on its own reader thread."""
+
+    def __init__(self, alive=True, answer=True):
+        self.alive, self.answer = alive, answer
+        self.base_priority = 7
+        self.override_settings = {"reportAnalysisWinratesAs": "BLACK"}
+        self.thread_lock = threading.RLock()
+        self.queries, self.sent, self.terminated = {}, [], []
+
+    def check_alive(self):
+        return self.alive
+
+    def terminate_query(self, query_id):
+        self.terminated.append(query_id)
+
+    def send_query(self, query, callback, error_callback, next_move=None, node=None):
+        self.sent.append(dict(query))
+        query_id = f"QUERY:{len(self.sent)}"
+        self.queries[query_id] = (callback, error_callback, 0, next_move, node)
+        if not self.answer:
+            return
+        to_play = query["initialPlayer"]
+        for _ in query["moves"]:
+            to_play = "W" if to_play == "B" else "B"
+        allowed = query.get("allowMoves")
+        occupied = {move for _, move in query["moves"]}
+        moves = allowed[0]["moves"] if allowed else [m for m in ("D16", "Q4", "C3") if m not in occupied][:2]
+        infos = [{"move": move, "order": rank, "winrate": .5 - .01 * rank, "scoreLead": .5 - rank,
+                  "visits": query["maxVisits"], "pv": [move], "pvVisits": [query["maxVisits"]],
+                  "ownership": [0.0] * 361} for rank, move in enumerate(moves)]
+        analysis = {"id": query_id, "rootInfo": {"currentPlayer": to_play, "winrate": .5, "scoreLead": .5,
+                                                 "visits": query["maxVisits"]}, "moveInfos": infos}
+
+        def deliver():
+            callback(dict(analysis, isDuringSearch=True), True)   # partial results are ignored
+            callback(analysis, False)
+        threading.Thread(target=deliver, daemon=True).start()
+
+
+class EngineClientTests(unittest.TestCase):
+    game = SimpleNamespace(initial_stones=[], initial_player="B", rules="chinese", komi=7.5, board_size=19)
+
+    def test_answers_keep_request_order_and_unowned_searches_are_untouched(self):
+        engine = FakeKaTrainEngine()
+        client = KaTrainEngineClient(SimpleNamespace(engine=engine))
+        answers = client.query_many(self.game, [
+            {"moves": [], "visits": 100}, {"moves": [["B", "Q16"]], "visits": 50, "ownership": False},
+            {"moves": [], "visits": 70, "forced_move": "Q4", "actor": "B"}])
+        self.assertEqual([answer["rootInfo"]["visits"] for answer in answers], [100, 50, 70])
+        self.assertFalse(engine.sent[1]["includeOwnership"])
+        self.assertEqual(engine.sent[2]["allowMoves"], [{"player": "B", "moves": ["Q4"], "untilDepth": 1}])
+        self.assertEqual(engine.terminated, [])
+        self.assertEqual(client.query_many(self.game, []), [])
+
+    def test_timeout_stops_only_this_clients_searches(self):
+        engine = FakeKaTrainEngine(answer=False)
+        engine.queries["QUERY:other"] = (lambda *args: None, None, 0, None, None)
+        client = KaTrainEngineClient(SimpleNamespace(engine=engine), total_seconds=.05)
+        with self.assertRaisesRegex(TimeoutError, "KaTrain"):
+            client.query_many(self.game, [{"moves": [], "visits": 100}, {"moves": [], "visits": 100}])
+        self.assertEqual(sorted(engine.terminated), ["QUERY:1", "QUERY:2"])
+
+    def test_engine_error_and_missing_engine_are_explicit(self):
+        engine = FakeKaTrainEngine(answer=False)
+        send = engine.send_query
+
+        def fail(query, callback, error_callback, **kwargs):
+            send(query, callback, error_callback, **kwargs)
+            error_callback({"error": "Illegal move"})
+        engine.send_query = fail
+        with self.assertRaisesRegex(ValueError, "Illegal move"):
+            KaTrainEngineClient(SimpleNamespace(engine=engine)).query(self.game, [], 100)
+        with self.assertRaises(EngineUnavailable):
+            KaTrainEngineClient(SimpleNamespace(engine=None)).query(self.game, [], 100)
 
 
 if __name__ == "__main__":

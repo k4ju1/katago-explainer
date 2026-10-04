@@ -45,7 +45,8 @@ class KaTrainInstallerTests(unittest.TestCase):
         for name in ('__init__.py', 'bridge.py', 'panel.py'):
             (self.source / name).write_bytes(f'# fake {name}\n'.encode('utf-8'))
         (self.project / 'explainer').mkdir()
-        (self.project / 'explainer' / 'server.py').write_bytes(b'# fake server\n')
+        for name in installer.CORE_FILES:
+            (self.project / 'explainer' / name).write_bytes(f'# fake core {name}\n'.encode('utf-8'))
         self.python = self.base / 'fake-python.exe'
         self.python.write_bytes(b'fake Python, never launched')
         self.backup = self.gui.with_name('gui.kv.explainer-original')
@@ -93,6 +94,39 @@ class KaTrainInstallerTests(unittest.TestCase):
         for name in ('__init__.py', 'bridge.py', 'panel.py', 'settings.json'):
             self.assertFalse((self.package / name).exists())
         self.assertEqual(self.exe.read_bytes(), b'fake executable, never launched')
+
+    def test_plugin_is_self_contained_and_needs_no_server_or_python(self):
+        self.install()
+        for name in installer.PLUGIN_FILES + installer.CORE_FILES:
+            self.assertTrue((self.package / name).is_file(), name)
+        self.assertEqual((self.package / 'service.py').read_bytes(), b'# fake core service.py\n')
+        self.assertFalse((self.package / 'server.py').exists())
+        settings = json.loads((self.package / 'settings.json').read_text(encoding='utf-8'))
+        self.assertEqual(settings['engine'], 'katrain')
+        self.assertNotIn('python_path', settings)
+        self.assertNotIn('backend_url', settings)
+        manifest = json.loads(self.manifest.read_text(encoding='utf-8'))
+        self.assertEqual(manifest['version'], 2)
+        installer.uninstall(self.katrain)
+        for name in installer.PLUGIN_FILES + installer.CORE_FILES:
+            self.assertFalse((self.package / name).exists(), name)
+
+    def test_update_removes_files_an_older_version_installed(self):
+        self.install()
+        manifest = json.loads(self.manifest.read_text(encoding='utf-8'))
+        manifest['files'].append('retired_module.py')
+        self.manifest.write_text(json.dumps(manifest), encoding='utf-8')
+        (self.package / 'retired_module.py').write_bytes(b'# old\n')
+        self.install()
+        self.assertFalse((self.package / 'retired_module.py').exists())
+        self.assertTrue((self.package / 'bridge.py').is_file())
+
+    def test_missing_core_module_is_refused_before_touching_katrain(self):
+        (self.project / 'explainer' / 'joseki.py').unlink()
+        with self.assertRaisesRegex(ValueError, 'joseki.py'):
+            self.install()
+        self.assertEqual(self.gui.read_bytes(), ORIGINAL)
+        self.assertFalse(self.manifest.exists())
 
     def test_unknown_original_gui_is_refused_without_creating_install_artifacts(self):
         unknown = ORIGINAL + b'\n# local UI modification\n'

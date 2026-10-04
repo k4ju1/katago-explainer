@@ -1,8 +1,8 @@
 # KataGo Explainer
 
-Evidence-supported explanations of Go moves using KataGo, counterfactual search, and claim verification.
+A KaTrain plugin that explains Go moves with evidence: KataGo search, counterfactual comparison, and claim verification, shown inside KaTrain.
 
-结合 KataGo、候选反事实搜索与主张验证，为围棋着法提供有证据支撑的解释。
+一个依附于 KaTrain 的着法讲解插件：在 KaTrain 里用 KataGo 搜索、候选反事实对比与主张验证，为着法提供有证据支撑的解释。
 
 [KaTrain extension / KaTrain 扩展](docs/KATRAIN_PLUGIN.md) · [Web testing guide / 网页测试说明](docs/USAGE.md) · [Joseki references / 定式参考](docs/JOSEKI_REFERENCES.md) · [Project plan — English](docs/PROJECT_PLAN.md) · [项目方案 — 中文](docs/PROJECT_PLAN.zh-CN.md) · [Verification / 接口验证](docs/feasibility.md)
 
@@ -30,9 +30,9 @@ The core has been tested with the real KataGo engine and automated tests. An ear
 
 ## Start in KaTrain / 在 KaTrain 中启动
 
-On the configured Windows computer, close any running KaTrain instance, then double-click `START_KATRAIN_EXPLAINER.cmd` in the project folder. The launcher installs the reversible extension, starts the local explanation backend, and opens the original KaTrain executable. Open your game in KaTrain and use the right-side explanation panel for the selected recorded move or the current position's AI recommendation. No SGF re-upload is needed. Read the explanation, replay candidate snapshots, and inspect the curve in a native popup. See the [native integration guide](docs/KATRAIN_PLUGIN.md) for version checks, backups, and uninstall instructions.
+On the configured Windows computer, close any running KaTrain instance, then double-click `START_KATRAIN_EXPLAINER.cmd` in the project folder. The launcher installs or updates the reversible plugin and opens the original KaTrain executable. The plugin runs inside KaTrain and sends its searches to the KataGo engine KaTrain already has running: there is no background service, no second KataGo process, and no separate Python runtime. After the first install KaTrain can also be opened directly. Open your game in KaTrain and use the right-side explanation panel for the selected recorded move or the current position's AI recommendation. No SGF re-upload is needed. The native popup opens with the verdict, keeps the board, playback and win-rate curve on the left, and sorts the explanation into five tabs (verdict, evidence, line, joseki and terms, limits). Clicking a reason or a step moves the board to it; ← → step through the line and Space plays it. See the [native integration guide](docs/KATRAIN_PLUGIN.md) for version checks, backups, and uninstall instructions.
 
-在已配置的 Windows 电脑上，先关闭正在运行的 KaTrain，再双击项目目录中的 `START_KATRAIN_EXPLAINER.cmd`。启动器安装可恢复的扩展、启动本机讲解后台，并打开原有 KaTrain 程序。在 KaTrain 中打开棋谱，通过右侧讲解面板解释选中的实战手，或讲解当前局面的 AI 一选，无需重新上传 SGF。在原生弹窗中阅读讲解、播放候选棋盘快照并查看曲线。版本检查、备份与卸载方法见[原生集成说明](docs/KATRAIN_PLUGIN.md)。
+在已配置的 Windows 电脑上，先关闭正在运行的 KaTrain，再双击项目目录中的 `START_KATRAIN_EXPLAINER.cmd`。启动器安装或更新可恢复的插件，并打开原有 KaTrain 程序。插件在 KaTrain 进程内运行，搜索直接交给 KaTrain 已经启动的 KataGo 引擎：没有后台服务，没有第二个 KataGo 进程，也不需要另外的 Python 环境。安装一次之后，也可以直接打开 KaTrain。在 KaTrain 中打开棋谱，通过右侧讲解面板解释选中的实战手，或讲解当前局面的 AI 一选，无需重新上传 SGF。原生弹窗先给结论，左侧是棋盘、逐手播放和胜率曲线，右侧把讲解分成五个标签页（结论、依据、变化、定式·术语、边界）。点击某条依据或某一手，棋盘会跳到对应的一步；← → 逐手，空格播放。版本检查、备份与卸载方法见[原生集成说明](docs/KATRAIN_PLUGIN.md)。
 
 The two dock buttons follow KaTrain's selected interface language. The explanation popup also provides its own Chinese/English switch; both languages share the same search evidence and values.
 
@@ -42,11 +42,11 @@ For a first reference test, open [examples/shusaku-demo.sgf](examples/shusaku-de
 
 首次测试可在 KaTrain 打开 [examples/shusaku-demo.sgf](examples/shusaku-demo.sgf)，前进到第 3 手黑 D5，再点击“解释刚才一手”。应显示秀策尖关联、作用说明、出处与术语。其他经典样例及目标手数见[使用说明](docs/USAGE.md)。这些是新增功能的测试步骤；此前记录的原生操作验收针对较早的提子界面。
 
-### Standalone web testing / 独立网页测试
+### Development test page (optional) / 开发测试页（可选）
 
-For development or backend testing, double-click `START_EXPLAINER.cmd` and use `http://127.0.0.1:8788`. This secondary interface supports SGF upload, custom candidates, and the same explanation pipeline. Keep its launcher open while testing. See the [web user guide](docs/USAGE.md) for configuration and reading the numbers.
+The plugin does not need this page. For developing or testing the explanation pipeline without KaTrain, double-click `START_EXPLAINER.cmd` and use `http://127.0.0.1:8788`. This secondary interface supports SGF upload, custom candidates, and the same explanation pipeline. Keep its launcher open while testing. See the [web user guide](docs/USAGE.md) for configuration and reading the numbers.
 
-开发或后台测试时，可双击 `START_EXPLAINER.cmd`，打开 `http://127.0.0.1:8788`。这个辅助界面支持 SGF 上传、自定义候选，并共用同一讲解流程。测试期间保留其启动窗口。配置方法与数字含义见[网页使用说明](docs/USAGE.md)。
+插件本身不需要这个页面。脱离 KaTrain 开发或测试讲解流程时，可双击 `START_EXPLAINER.cmd`，打开 `http://127.0.0.1:8788`。这个辅助界面支持 SGF 上传、自定义候选，并共用同一讲解流程。测试期间保留其启动窗口。配置方法与数字含义见[网页使用说明](docs/USAGE.md)。
 
 Choose a sample under “经典棋形 / Classic pattern” on the web, click “定式示例 / Joseki example”, then “解释这一步 / Explain this move”. The example selects its intended recorded move automatically.
 
@@ -57,7 +57,7 @@ Choose a sample under “经典棋形 / Classic pattern” on the web, click “
 | Artifact / 文件 | Purpose / 用途 |
 | --- | --- |
 | [Native integration guide / 原生集成说明](docs/KATRAIN_PLUGIN.md) | Experimental KaTrain v1.20.0 extension, installation, restoration, and workflow / 实验性 KaTrain v1.20.0 扩展、安装恢复与使用流程 |
-| [Native launcher / 原生启动入口](START_KATRAIN_EXPLAINER.cmd) | Original KaTrain executable with a native explanation panel and local backend / 原有 KaTrain 程序、原生讲解面板与本机后台 |
+| [Native launcher / 原生启动入口](START_KATRAIN_EXPLAINER.cmd) | Installs or updates the plugin and opens the original KaTrain / 安装或更新插件并打开原有 KaTrain |
 | [Web user guide / 网页使用说明](docs/USAGE.md) | Secondary developer/testing interface and evidence interpretation / 辅助开发测试界面与证据解读 |
 | [Joseki references / 定式参考说明](docs/JOSEKI_REFERENCES.md) | Curated prefixes, source attribution, history matching, and terminology limits / 精选前缀、来源、历史匹配与术语边界 |
 | [English plan](docs/PROJECT_PLAN.md) / [中文方案](docs/PROJECT_PLAN.zh-CN.md) | Scope, architecture, algorithm, dataset, evaluation, and roadmap / 范围、架构、算法、数据集、评测与开发路线 |

@@ -1,5 +1,10 @@
-"""Install or remove the reversible KaTrain v1.20.0 explanation UI extension.
-安装或卸载可恢复的 KaTrain v1.20.0 原生讲解扩展。
+"""Install or remove the reversible KaTrain v1.20.0 explanation plugin.
+安装或卸载可恢复的 KaTrain v1.20.0 着法讲解插件。
+
+The plugin is self-contained once installed: its panel, bridge and the
+explanation pipeline are copied into KaTrain and run inside KaTrain, using
+KaTrain's own KataGo engine. This script is only needed to install, update
+or remove it.
 """
 
 import argparse
@@ -12,6 +17,9 @@ import sys
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 ORIGINAL_GUI_SHA256 = '0c015263cd52305c9d64812c1d013173e69a4e4a131f40847d9bbe455936e9df'
 MARKER = '# KataGo Explainer native integration v1'
+PLUGIN_FILES = ('__init__.py', 'bridge.py', 'panel.py')
+# The explanation pipeline, copied beside the plugin so KaTrain needs nothing else.
+CORE_FILES = ('board.py', 'engine.py', 'explanation.py', 'joseki.py', 'service.py', 'sgf.py', 'terms.py')
 IMPORT = '#:import KaTrainExplainerPanel katrain_explainer.panel.KaTrainExplainerPanel'
 ANCHOR = '                        ControlsPanel:\n                            id: controls'
 DOCK = ('                        KaTrainExplainerPanel:\n'
@@ -63,16 +71,20 @@ def install(katrain_dir, python_path=None, project_dir=PROJECT_DIR):
             raise ValueError('存在未登记的同名扩展或备份，未覆盖。 / Unregistered plugin or backup already exists.')
         original = current
     patched = patch_gui(original)
-    source_package = project_dir / 'plugins' / 'katrain'
-    names = ('__init__.py', 'bridge.py', 'panel.py')
-    contents = {name: (source_package / name).read_bytes() for name in names}
-    runtime = Path(python_path or sys.executable).resolve()
-    if not runtime.is_file() or not (project_dir / 'explainer' / 'server.py').is_file():
-        raise ValueError('Python 或项目路径缺失 / Missing Python runtime or project path')
-    settings = {'backend_url': 'http://127.0.0.1:8788',
-                'project_path': str(project_dir), 'python_path': str(runtime)}
+    sources = [project_dir / 'plugins' / 'katrain' / name for name in PLUGIN_FILES]
+    sources += [project_dir / 'explainer' / name for name in CORE_FILES]
+    missing = [str(path) for path in sources if not path.is_file()]
+    if missing:
+        raise ValueError('项目文件缺失 / Missing project files: ' + ', '.join(missing))
+    names = PLUGIN_FILES + CORE_FILES
+    contents = {path.name: path.read_bytes() for path in sources}
+    # python_path is accepted for older launchers; the plugin no longer needs a Python runtime.
+    settings = {'engine': 'katrain', 'source': str(project_dir)}
     previous_files = {path: path.read_bytes() if path.is_file() else None
                       for path in [*(package / name for name in names), package / 'settings.json', backup, manifest_path]}
+    # Files of an earlier version that this version no longer ships are removed on success.
+    stale = [package / name for name in (manifest.get('files', []) if manifest_path.exists() else [])
+             if isinstance(name, str) and Path(name).name == name and name not in names and name != 'settings.json']
     package.mkdir(parents=True, exist_ok=True)
     try:
         for name, content in contents.items():
@@ -83,10 +95,13 @@ def install(katrain_dir, python_path=None, project_dir=PROJECT_DIR):
         temporary = gui_path.with_name('gui.kv.explainer-tmp')
         temporary.write_bytes(patched)
         temporary.replace(gui_path)
-        manifest = {'version': 1, 'target': 'KaTrain v1.20.0',
+        manifest = {'version': 2, 'target': 'KaTrain v1.20.0',
                     'original_sha256': digest(original), 'patched_sha256': digest(patched),
                     'files': list(names) + ['settings.json'], 'package': str(package)}
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+        for path in stale:
+            if path.is_file():
+                path.unlink()
     except Exception:
         # A failed install must leave the original UI loadable.
         gui_path.write_bytes(current)
@@ -138,7 +153,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--katrain-dir', type=Path,
                         default=PROJECT_DIR.parent / 'KaTrain-1.20.0' / 'KaTrain')
-    parser.add_argument('--python', type=Path, default=Path(sys.executable))
+    parser.add_argument('--python', type=Path, default=Path(sys.executable), help='已不需要，仅为兼容保留 / No longer needed; kept for compatibility')
     parser.add_argument('--uninstall', action='store_true', help='恢复原始界面 / Restore the original UI')
     args = parser.parse_args()
     try:
