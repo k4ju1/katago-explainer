@@ -77,18 +77,28 @@ Later moves in an actual searched variation can receive their own role match usi
 
 - 界面所有胜率和目差固定为本次被讲解的执棋方视角，即使后续轮到对手也不会反转。正目差表示这方预计领先。
   All displayed winrates and score leads keep the explained player's perspective, even on the opponent's turn. A positive score lead favors that player.
-- 候选比较：从同一个初始局面，分别限制第一手进行 512 visits 的补搜；后续应手不限制。差值单位为“百分点”和“目”。
-  Candidate comparison: separate searches request 512 visits from the same position, restricting only the first move. Differences are in percentage points and points.
-- 变化曲线：初始局面与变化里的每个节点分别请求 256 visits 的重新评估。每条变化最多显示 6 手；这些评估会受到有限预算影响，不能当作精确因果分解。
-  Continuation curve: the starting position and each later position receive separate 256-visit evaluations. Each line shows at most six plies. Finite search affects the estimates; the curve is not an exact causal decomposition.
+- 结论在最前：讲解第一句先给出本次搜索的判断，再说明棋形。实战手与 AI 一选的补搜差距同时小于 1 个百分点和 0.5 目时写“基本等价”；否则按差距分为略亏、小失误、失误、大失误（目差 0.5／1.5／3／6 目，胜率 1／4／8／15 个百分点，取较重的一档）。原局面胜率超过 90% 或低于 10% 时胜率已不敏感，只按目差分档。
+  The verdict comes first: the opening sentence states this search's judgment, then the shape. When the re-search gap between the game move and the first choice is below both 1 percentage point and 0.5 points, the moves are called “practically equal”. Otherwise the gap is banded as slightly worse, inaccuracy, mistake, or blunder (0.5/1.5/3/6 points of score, 1/4/8/15 percentage points, whichever is more severe). Above 90% or below 10% win probability only the score is used.
+- 数值保留一位小数：同一局面重复搜索，胜率常有零点几个百分点的出入，更多小数位没有意义。
+  Values are shown to one decimal: repeated searches of one position differ by a few tenths of a percentage point, so more digits carry no information.
+- 根搜索请求 800 visits。候选比较：从同一个初始局面，分别限制第一手进行 600 visits 的补搜；后续应手不限制。差值单位为“百分点”和“目”。根搜索里与一选差距在波动范围内、且搜索次数足够的着法会列为同一档。
+  The root search requests 800 visits. Candidate comparison: separate searches request 600 visits from the same position, restricting only the first move. Differences are in percentage points and points. Root moves within noise of the first choice, with enough visits, are listed as one tier.
+- 脱先对比：另外搜索两个假设局面（各 300 visits）。“这手不下、停一手”的评估与下了这手的评估之差，是这手棋的大致价值，同时显示对方此时最想下哪里。“下了这手后对方停一手”的局面给出己方的后续手：后续手就在同一局部，说明这手留有后续、接近先手；后续手在别处，说明对方可以脱先。停一手只是衡量手段，不是实战建议；上一手或本手是停一手时跳过这项对比。
+  Tenuki comparison: two hypothetical positions are searched (300 visits each). The gap between “pass instead of this move” and the move itself approximates the move's value, and shows where the opponent most wants to play. “The opponent passes after this move” gives the follow-up: a follow-up in the same area means the move leaves a threat and is close to sente; a follow-up elsewhere means the opponent can play away. The pass is a measuring device, not advice; the comparison is skipped next to a real pass.
+- 变化曲线：初始局面与变化里的每个节点分别请求 200 visits 的重新评估，这些局面一次性并行发送给引擎。每条变化最多显示 6 手，而且只显示搜索真正走到的部分：某一步的搜索次数低于门槛（首手的 5% 与 16 次中较高者）时，其后的着法不再展示。评估会受到有限预算影响，不能当作精确因果分解。
+  Continuation curve: the starting position and each later position receive separate 200-visit evaluations, sent to the engine as one parallel batch. Each line shows at most six plies and only the part the search really explored: once a step falls below the floor (the larger of 5% of the first move's visits and 16 visits), later moves are omitted. Finite search affects the estimates; the curve is not an exact causal decomposition.
+- 变化中的脱先：某一手离此前所有落点都很远时，直接写“脱先，转向某处”，并说明原来的局部走到上一手暂告一段落。
+  Tenuki inside a line: a move far from every earlier move of the line is reported as playing elsewhere, with a note that the original local exchange is settled for now.
+- 归属预测：只汇总两个候选着法周围的差别，以及附近哪块棋的归属均值变化最大。远离候选的区域只反映两条变化各自把闲手下在了哪里，不参与汇总。它是网络估计，不是实地数目或死活结论。
+  Ownership: only the neighbourhoods of the two candidates are summed, plus the nearby chain whose mean ownership changes most. Distant areas only show where each line spends its free moves and are left out. This is a network estimate, not a territory count or a life-and-death verdict.
 - AI 一选来自未限制搜索的 `order=0`，而不是直接取原始胜率最大值。补搜后数值或排序可能不同，工具会保留原始排序与实测数值。
   The AI first choice is `order=0` from the unrestricted search, rather than the highest raw winrate. Deeper candidate evaluations may differ; the original ranking and observed values are retained.
 
 ## 当前讲解能力 / Current explanation scope
 
-已实现：SGF 主线导入、初始摆子和完整历史重放、提子/打吃/连接/气的规则核验、有限位置性解读、原始一选与候选补搜、主要变化逐手播放、逐节点胜率评估、精选定式前缀参考、中文专业术语释义、中英切换。
+已实现：SGF 主线导入、初始摆子和完整历史重放、提子/打吃/连接/气的规则核验、按相邻关系判别的棋形名称（断、扳、长、顶、尖顶、托、靠、尖、肩冲、跳、小飞、大飞、挂角、占角；同一手只给一个名称）、有限位置性解读、原始一选与候选补搜、结论分档、脱先对比、主要变化逐手播放、逐节点胜率评估、精选定式前缀参考、中文专业术语释义、中英切换。
 
-Implemented: SGF mainline import, setup and full-history replay, rule-verified captures/atari/connections/liberties, limited positional interpretations, original recommendation and candidate re-searches, principal-variation playback, per-position evaluation, curated joseki-prefix references, Chinese professional terminology, and Chinese/English switching.
+Implemented: SGF mainline import, setup and full-history replay, rule-verified captures/atari/connections/liberties, adjacency-based shape names (cut, hane, extension, push, kick, attachment, diagonal, shoulder hit, jumps, knight moves, approach, corner point; one name per move), limited positional interpretations, original recommendation and candidate re-searches, verdict tiers, tenuki comparison, principal-variation playback, per-position evaluation, curated joseki-prefix references, Chinese professional terminology, and Chinese/English switching.
 
 当前使用规则与证据模板生成讲解，尚未接入语言模型。厚薄、全局方向、死活和复杂劫争的深入解释仍需要扩展和专家评测。棋盘事实可以直接核对；位置性解读明确标为证据不足或推测；主要变化是示例路线，不表示对手只有一种应手。
 
@@ -109,9 +119,13 @@ python -m explainer.server `
   --open-browser
 ```
 
-本版本的启动配置针对 OpenCL。每个查询最长等待 40 秒，一次讲解整体分析期限 150 秒。后台一次只运行一个分析任务；结果、原始请求和响应保存到 `runs/<时间>-<任务号>/`。目前结果不自动保存到云端。
+四个路径参数都可以省略。省略时依次使用：命令行参数、环境变量 `KATAGO_EXPLAINER_ENGINE`／`MODEL`／`CONFIG`／`TUNER`、自动查找。自动查找会在项目同级目录寻找 `KaTrain*` 文件夹里的引擎、配置和模型，并在 `~/.katrain/opencltuning` 里选取 19 路、与模型通道数相符的最新调优文件，不依赖具体显卡名称。找不到调优文件时不指定该项，由 KataGo 自行处理（首次运行可能需要较长的调优时间）。
 
-The current launch settings target OpenCL. Each query waits at most 40 seconds, within a 150-second analysis deadline per explanation. One analysis job runs at a time. Results and raw protocol data are stored in `runs/<time>-<job-id>/`. Results are not automatically sent to a cloud service.
+本版本的启动配置针对 OpenCL。一批查询最长等待 40 秒（每多一个局面加 5 秒），一次讲解整体分析期限 150 秒。后台一次只运行一个分析任务。引擎进程在两次讲解之间保持运行，连续讲解不必重新加载模型；空闲 5 分钟后或某次讲解失败后自动关闭。结果、原始请求和响应保存到 `runs/<时间>-<任务号>/`，只保留最近 30 次，更早的这类文件夹会自动删除（`runs/` 里的其他文件不受影响）。目前结果不自动保存到云端。
+
+All four path arguments are optional. The order is: command-line argument, environment variable `KATAGO_EXPLAINER_ENGINE` / `MODEL` / `CONFIG` / `TUNER`, then discovery. Discovery looks for the engine, config, and model in a `KaTrain*` folder beside the project, and picks the newest 19×19 tuning file in `~/.katrain/opencltuning` that matches the model's channel count, without relying on a GPU name. With no tuning file the option is left unset and KataGo handles tuning itself (the first run may take much longer).
+
+The current launch settings target OpenCL. A batch of queries waits at most 40 seconds (plus 5 seconds per extra position), within a 150-second analysis deadline per explanation. One analysis job runs at a time. The engine process stays running between explanations, so consecutive explanations do not reload the model; it is closed after five idle minutes or after a failed explanation. Results and raw protocol data are stored in `runs/<time>-<job-id>/`; only the latest 30 are kept and older folders of this kind are deleted automatically (other files in `runs/` are untouched). Results are not automatically sent to a cloud service.
 
 ```powershell
 python -m unittest discover -s tests -v

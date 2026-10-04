@@ -22,7 +22,10 @@ class ExplanationContextTests(unittest.TestCase):
         self.assertIn('E3 是「扳（二子头扳）', result['summary']['zh'])
         self.assertEqual(len(result['joseki']), 1)
         comparison = next(reason for reason in result['reasons'] if reason['id'] == 'candidate-comparison')
-        self.assertIn('-3.000 个百分点', comparison['text']['zh'])
+        self.assertIn('胜率 -3.0 个百分点', comparison['text']['zh'])
+        # The verdict leads the summary; the joseki role follows it.
+        self.assertTrue(result['summary']['zh'].startswith('略亏：'))
+        self.assertEqual(result['verdict']['level'], 'slight')
         self.assertEqual(analysis['selected']['winrate'], 45.0)
         self.assertNotIn('engine-choice', [reason['id'] for reason in result['reasons']])
         reference_reason = next(reason for reason in result['reasons'] if reason['level'] == 'reference')

@@ -6,14 +6,17 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import re
+import shutil
 import threading
 from urllib.parse import urlsplit
 import uuid
 import webbrowser
 
 from .board import Board
-from .engine import discover_settings, stop_active_engines
-from .service import explain_move, snapshot, text
+from .engine import EnginePool, discover_settings, stop_active_engines
+from .service import (CANDIDATE_VISITS, PV_PLIES, ROOT_VISITS, TENUKI_VISITS, TRACE_VISITS,
+                      explain_move, snapshot, text)
 from .sgf import parse_sgf
 
 
@@ -25,6 +28,31 @@ JOSEKI_EXAMPLES = {
     'attach-retreat': ('attach-retreat-demo.sgf', 4),
     'shusaku': ('shusaku-demo.sgf', 2),
 }
+
+
+RUN_DIRECTORY = re.compile(r'\d{8}-\d{6}-[0-9a-f]{8}')
+KEPT_RUNS = 30
+
+
+def prune_runs(runs_dir, keep=KEPT_RUNS):
+    """Delete the oldest per-explanation run folders beyond `keep`.
+
+    Only folders this server names itself (timestamp plus job id) are touched;
+    research notes, screenshots and logs kept beside them are left alone.
+    """
+    runs_dir = Path(runs_dir)
+    if not runs_dir.is_dir():
+        return []
+    folders = sorted(path for path in runs_dir.iterdir()
+                     if path.is_dir() and RUN_DIRECTORY.fullmatch(path.name))
+    removed = []
+    for folder in folders[:max(0, len(folders) - keep)]:
+        try:
+            shutil.rmtree(folder)
+            removed.append(folder.name)
+        except OSError:
+            pass  # e.g. still the working directory of the warm engine
+    return removed
 
 
 def public_game(game, game_id):
@@ -44,6 +72,7 @@ class Application:
         self.jobs = OrderedDict()
         self.lock = threading.RLock()
         self.active = False
+        self.pool = EnginePool(settings)
         self.default_game = self.add_game((PROJECT_DIR / 'examples' / 'demo.sgf').read_text(encoding='utf-8'))
 
     def add_game(self, sgf):
@@ -63,7 +92,8 @@ class Application:
         return {'application': 'katago-explainer', 'api_version': 1,
                 'game': game, 'defaults': {'choice': 'actual' if uploaded and game['moves'] else 'ai',
                 'move_index': 0 if uploaded else min(8, len(game['moves'])),
-                'root_visits': 256, 'candidate_visits': 512, 'pv_plies': 6}}
+                'root_visits': ROOT_VISITS, 'candidate_visits': CANDIDATE_VISITS,
+                'trace_visits': TRACE_VISITS, 'tenuki_visits': TENUKI_VISITS, 'pv_plies': PV_PLIES}}
 
     def start_job(self, payload):
         game_id = payload.get('game_id')
@@ -105,7 +135,8 @@ class Application:
             try:
                 with self.lock:
                     job['status'] = 'running'
-                result = explain_move(record, game_id, move_index, choice, self.settings, run_dir, progress, custom_move)
+                result = explain_move(record, game_id, move_index, choice, self.settings, run_dir, progress,
+                                      custom_move, pool=self.pool)
                 with self.lock:
                     job['result'] = result
                     job['status'] = 'complete'
@@ -118,6 +149,7 @@ class Application:
             finally:
                 with self.lock:
                     self.active = False
+                prune_runs(PROJECT_DIR / 'runs')
 
         self.worker = threading.Thread(target=worker, daemon=True)
         self.worker.start()
@@ -223,7 +255,8 @@ def main():
     parser.add_argument('--port', type=int, default=8788, help='本机端口 / Local port')
     parser.add_argument('--open-browser', action='store_true', help='打开浏览器 / Open browser')
     for name in ('engine', 'model', 'config', 'tuner'):
-        parser.add_argument('--' + name, type=Path, help=f'{name} 文件路径 / {name} file path')
+        parser.add_argument('--' + name, type=Path,
+                            help=f'{name} 文件路径；默认自动查找 / {name} file path; discovered automatically by default')
     args = parser.parse_args()
     settings = discover_settings(PROJECT_DIR, {name: getattr(args, name) for name in ('engine', 'model', 'config', 'tuner')})
     try:
@@ -245,6 +278,7 @@ def main():
         worker = getattr(app, 'worker', None)
         if worker is not None:
             worker.join(timeout=5)
+        app.pool.close()
         server.server_close()
 
 

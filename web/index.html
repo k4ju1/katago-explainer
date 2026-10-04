@@ -60,8 +60,8 @@
     const state={lang:localStorage.getItem('katago-language')||'zh',game:null,defaults:{},index:0,choice:'actual',custom:null,result:null,branch:0,step:0,job:null,busy:false,timer:null,playTimer:null,positionKey:null};
     function tr(key){return labels[state.lang][key]||key}
     function text(value){if(value==null)return '';if(typeof value==='string'||typeof value==='number')return String(value);return value[state.lang]??value[state.lang==='zh'?'zh-CN':'en']??value.en??value.zh??value.text??''}
-    function number(n,d=2){return n!=null&&Number.isFinite(Number(n))?Number(n).toFixed(d):'—'}
-    function rate(n){return n==null?'—':number(n,2)+'%'}
+    function number(n,d=1){return n!=null&&Number.isFinite(Number(n))?Number(n).toFixed(d):'—'}
+    function rate(n){return n==null?'—':number(n,1)+'%'}
     function moveText(m){return typeof m==='string'?m:Array.isArray(m)?m[1]:(m?.move??m?.vertex??m?.coordinate??'pass')}
     function movePlayer(m){return Array.isArray(m)?m[0]:m?.player}
     function playerText(p){return String(p||'B').toUpperCase().startsWith('W')?tr('white'):tr('black')}

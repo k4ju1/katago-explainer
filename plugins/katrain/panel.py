@@ -513,7 +513,7 @@ class KaTrainExplainerPanel(BoxLayout):
             self._plot.display(steps, self._ply)
             metric = current.get("eval", {})
             position = self._t("起始局面", "Starting position") if self._ply == 0 else f"{self._t('变化', 'Step')} {self._ply}/{self._max_ply()} · {current.get('player')} {current.get('move')}"
-            self._step_label.text = position + (f" · {metric['winrate']:.2f}%" if metric.get("winrate") is not None else "")
+            self._step_label.text = position + (f" · {metric['winrate']:.1f}%" if metric.get("winrate") is not None else "")
             color = self._t("黑棋", "Black") if self._result.get("player") == "B" else self._t("白棋", "White")
             self._chart_label.text = self._t("胜率变化 · 固定", "Winrate · fixed") + " " + color + self._t("视角", " perspective")
             self._chart_note.text = self._t("每个点来自独立搜索。评估波动不能直接归因于某一手；数字为后续手顺。", "Each point is searched independently. Evaluation drift is not a move's causal contribution. Numbers show the continuation.")
@@ -596,10 +596,10 @@ class KaTrainExplainerPanel(BoxLayout):
         heading(self._t("同一局面的候选比较", "Candidates in the same position") + " · " + player + self._t("视角", " perspective"))
         for candidate in [result.get("selected"), result.get("alternative")]:
             if candidate:
-                sections.append(escape_markup(f"{candidate.get('move')} · {self._t('胜率', 'winrate')} {candidate['winrate']:.2f}% · {self._t('目差', 'lead')} {candidate['score_lead']:+.2f} · {candidate.get('visits', 0)} {self._t('次搜索', 'visits')}"))
+                sections.append(escape_markup(f"{candidate.get('move')} · {self._t('胜率', 'winrate')} {candidate['winrate']:.1f}% · {self._t('目差', 'lead')} {candidate['score_lead']:+.1f} · {candidate.get('visits', 0)} {self._t('次搜索', 'visits')}"))
         difference = result.get("comparison")
         if difference:
-            sections.append(escape_markup(self._t("所选着法相对替代着法：", "Chosen versus alternative: ") + f"{difference['winrate_pp']:+.2f} " + self._t("个百分点。", "percentage points.")))
+            sections.append(escape_markup(self._t("所选着法相对替代着法：", "Chosen versus alternative: ") + f"{difference['winrate_pp']:+.1f} " + self._t("个百分点。", "percentage points.")))
         sections.append(escape_markup(self._t("候选优势与沿变化的评估波动分别展示；一选并不保证胜率上升。", "Candidate advantage and evaluation drift along a line are shown separately. The first choice does not guarantee a winrate increase.")))
         heading(self._t("讲解着法的后续演变", "Selected move continuation"))
         for note in explanation.get("continuation", []):
@@ -610,8 +610,8 @@ class KaTrainExplainerPanel(BoxLayout):
             metric = step.get("eval")
             if not metric:
                 continue
-            delta = "—" if previous is None else f"{metric['winrate'] - previous:+.2f} pp"
-            sections.append(escape_markup(f"{step.get('ply', 0)} · {step.get('move') or self._t('起始', 'start')} · {metric['winrate']:.2f}% · Δ {delta} · {metric['score_lead']:+.2f} {self._t('目', 'points')}"))
+            delta = "—" if previous is None else f"{metric['winrate'] - previous:+.1f} pp"
+            sections.append(escape_markup(f"{step.get('ply', 0)} · {step.get('move') or self._t('起始', 'start')} · {metric['winrate']:.1f}% · Δ {delta} · {metric['score_lead']:+.1f} {self._t('目', 'points')}"))
             previous = metric["winrate"]
         heading(self._t("解释的边界", "Limits of this explanation"))
         for note in list(explanation.get("limitations", [])) + list(result.get("warnings", [])):

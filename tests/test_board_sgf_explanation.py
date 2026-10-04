@@ -157,7 +157,10 @@ class ExplanationTests(unittest.TestCase):
         self.assertIn("lower side", positional["text"]["en"])
         self.assertIn("Q4", positional["text"]["en"])
         self.assertIn("line 3", location["text"]["en"])
-        self.assertIn("+0.800", next(item for item in result["reasons"] if item["id"] == "candidate-comparison")["text"]["en"])
+        comparison = next(item for item in result["reasons"] if item["id"] == "candidate-comparison")
+        self.assertIn("+0.8 percentage points", comparison["text"]["en"])
+        self.assertIn("practically equal", comparison["text"]["en"])
+        self.assertEqual(result["verdict"]["level"], "equal")
         self.assertFalse(any("joins" in item["text"]["en"] for item in result["reasons"]))
 
     def test_white_perspective_does_not_flip_black_ownership(self):
@@ -170,10 +173,12 @@ class ExplanationTests(unittest.TestCase):
         })
         ownership = next(item for item in result["reasons"] if item["id"] == "ownership-clue")
         comparison = next(item for item in result["reasons"] if item["id"] == "candidate-comparison")
-        self.assertIn("-0.600", ownership["text"]["en"])
-        self.assertIn("positive favors Black", ownership["text"]["en"])
+        # Black-oriented -0.6 versus +0.2 is 0.8 points toward White, in the corner.
+        self.assertIn("upper-left corner", ownership["text"]["en"])
+        self.assertIn("about 0.8 points of predicted ownership toward White", ownership["text"]["en"])
+        self.assertIn("对白方多约 0.8 目", ownership["text"]["zh"])
         self.assertIn("White's", comparison["text"]["en"])
-        self.assertIn("+2.000", comparison["text"]["en"])
+        self.assertIn("+2.0 percentage points", comparison["text"]["en"])
 
     def test_illegal_pv_stops_before_using_unverified_steps(self):
         board = Board(9)
@@ -206,7 +211,7 @@ class ExplanationTests(unittest.TestCase):
                     {"ply": 2, "player": "W", "move": "C7"}]}],
         })
         self.assertEqual(len(result["continuation"]), 2)
-        self.assertIn("51.500%", result["continuation"][0]["en"])
+        self.assertIn("51.5%", result["continuation"][0]["en"])
         self.assertIn("G7", next(item for item in result["reasons"] if item["id"] == "anticipated-reply")["text"]["en"])
         self.assertIn("C7", next(item for item in result["reasons"] if item["id"] == "alternative-reply")["text"]["en"])
         self.assertFalse(any("illegal move" in item["en"] for item in result["limitations"]))

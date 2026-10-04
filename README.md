@@ -81,12 +81,17 @@ Personal absolute paths were replaced with environment placeholders in the publi
 Position / 局面
   → Unrestricted root search / 未限制根搜索
   → Independent candidate searches / 候选独立补搜
+  → Hypothetical-pass (tenuki) comparison / 假设停一手的脱先对比
   → Board facts and variation differences / 棋盘事实与变化差异
   → Board checks and evidence labels / 棋盘核验与证据分级
   → Explanation with replayable evidence / 附可播放证据的讲解
 ```
 
 Read `order=0` to identify the recommendation from the unrestricted root search. Do not re-rank by winrate and call the result the engine's first choice. Candidate searches constrain only the first move; later replies remain free. Current rule checks and explanation labels distinguish exact board facts, search-supported assessments, and tentative interpretations. A comprehensive claim verifier remains planned.
+
+The explanation opens with a verdict: how the move compares with the engine's first choice, in bands from “practically equal” (below 1 percentage point and 0.5 points, the size of search noise) to blunder. Two hypothetical-pass searches then estimate what the move is worth and whether it leaves a local follow-up. Values are shown to one decimal, and a variation is cut where the search stopped visiting it.
+
+讲解第一句先给结论：这手与 AI 一选相比处于哪一档，从“基本等价”（差距小于 1 个百分点且小于 0.5 目，相当于搜索波动）到大失误。随后用两次“假设停一手”的搜索估计这手棋的价值，以及它是否留有局部后续手段。数值保留一位小数，变化只展示搜索真正走到的部分。
 
 从未限制根搜索的 `order=0` 读取引擎推荐，不自行按胜率重新定义一选。候选补搜只约束第一手，后续应手保持自由。当前规则核验与讲解标签区分精确棋盘事实、搜索支持的判断和推测性解读；完整主张验证器仍在开发计划中。
 
@@ -117,20 +122,6 @@ Results default to `runs/`; use `--output-dir` to change the destination. Each s
 The probe overrides the report perspective to `BLACK`, so stored winrates, score leads, and ownership remain consistent with the example summary.
 
 探针通过启动配置将输出视角固定为 `BLACK`，使胜率、目差和归属预测与摘要中的黑方视角保持一致。
-
-## Roadmap / 开发路线
-
-| Stage / 阶段 | Deliverable / 成果 |
-| --- | --- |
-| Weeks 1–3 / 第 1–3 周 | SGF navigation, candidates, PV playback / 棋谱浏览、候选表、变化播放 |
-| Weeks 4–6 / 第 4–6 周 | Candidate comparison, board facts, explanations / 候选比较、棋盘事实、讲解 |
-| Weeks 7–8 / 第 7–8 周 | Claim verification, follow-up questions, fixed dataset / 主张验证、追问、固定评测集 |
-| Weeks 9–10 / 第 9–10 周 | Frozen evaluation build, baselines, expert review / 冻结评测版本、基线实验、专家评审 |
-| Weeks 11–12 / 第 11–12 周 | Reliability fixes, report export, demo / 稳定性改进、报告导出、演示 |
-
-These are planning estimates. Evaluation will test whether candidate comparison and claim verification reduce unsupported explanations, while measuring their computational cost. Start with 30 pilot positions, then freeze a held-out evaluation set. Record later engineering revisions separately from the evaluated build.
-
-以上周期是计划估计。评测重点是候选比较与主张验证能否减少无依据讲解，以及增加多少计算成本。先做 30 个试标局面，再固定独立评测集；评测后的工程修改与被冻结的版本分开记录。
 
 ## References / 参考
 
