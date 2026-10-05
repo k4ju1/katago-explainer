@@ -38,7 +38,7 @@ def patch_gui(original):
     return gui_patch.apply(original.decode('utf-8')).encode('utf-8')
 
 
-def install(katrain_dir, python_path=None, project_dir=PROJECT_DIR):
+def install(katrain_dir, project_dir=PROJECT_DIR):
     katrain_dir = Path(katrain_dir).resolve()
     project_dir = Path(project_dir).resolve()
     internal = katrain_dir / '_internal'
@@ -49,6 +49,7 @@ def install(katrain_dir, python_path=None, project_dir=PROJECT_DIR):
     if not (katrain_dir / 'KaTrain.exe').is_file() or not gui_path.is_file():
         raise ValueError('请选择包含 KaTrain.exe 的目录 / Select the folder containing KaTrain.exe')
     current = gui_path.read_bytes()
+    manifest = None
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
         if digest(current) != manifest['patched_sha256']:
@@ -69,26 +70,27 @@ def install(katrain_dir, python_path=None, project_dir=PROJECT_DIR):
         raise ValueError('项目文件缺失 / Missing project files: ' + ', '.join(missing))
     names = PLUGIN_FILES + CORE_FILES
     contents = {path.name: path.read_bytes() for path in sources}
-    # python_path is accepted for older launchers; the plugin no longer needs a Python runtime.
-    settings = {'engine': 'katrain', 'source': str(project_dir)}
-    previous_files = {path: path.read_bytes() if path.is_file() else None
-                      for path in [*(package / name for name in names), package / 'settings.json', backup, manifest_path]}
     # Files of an earlier version that this version no longer ships are removed on success.
-    stale = [package / name for name in (manifest.get('files', []) if manifest_path.exists() else [])
-             if isinstance(name, str) and Path(name).name == name and name not in names and name != 'settings.json']
+    previous_names = manifest.get('files', []) if manifest else []
+    if not isinstance(previous_names, list) or not all(
+            isinstance(name, str) and Path(name).name == name and name not in ('', '.', '..')
+            for name in previous_names):
+        raise ValueError('扩展文件名无效 / Invalid plugin filename')
+    stale = [package / name for name in previous_names if name not in names]
+    previous_files = {path: path.read_bytes() if path.is_file() else None
+                      for path in [*(package / name for name in names), *stale, backup, manifest_path]}
     package.mkdir(parents=True, exist_ok=True)
     try:
         for name, content in contents.items():
             (package / name).write_bytes(content)
-        (package / 'settings.json').write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding='utf-8')
         if not backup.exists():
             backup.write_bytes(original)
         temporary = gui_path.with_name('gui.kv.explainer-tmp')
         temporary.write_bytes(patched)
         temporary.replace(gui_path)
-        manifest = {'version': 3, 'target': 'KaTrain v1.20.0',
+        manifest = {'version': 4, 'target': 'KaTrain v1.20.0',
                     'original_sha256': digest(original), 'patched_sha256': digest(patched),
-                    'files': list(names) + ['settings.json'], 'package': str(package)}
+                    'files': list(names), 'package': str(package)}
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
         for path in stale:
             if path.is_file():
@@ -125,13 +127,13 @@ def uninstall(katrain_dir):
     if digest(original) != manifest['original_sha256']:
         raise ValueError('备份校验失败 / Backup verification failed')
     package = internal / 'katrain_explainer'
-    if not all(isinstance(name, str) and Path(name).name == name for name in manifest['files']):
+    if not isinstance(manifest['files'], list) or not all(
+            isinstance(name, str) and Path(name).name == name and name not in ('', '.', '..')
+            for name in manifest['files']):
         raise ValueError('扩展文件名无效 / Invalid plugin filename')
     gui_path.write_bytes(original)
     # Only remove this install's named files, without recursive folder deletion.
     for name in manifest['files']:
-        if Path(name).name != name:
-            raise ValueError('扩展文件名无效 / Invalid plugin filename')
         candidate = package / name
         if candidate.is_file():
             candidate.unlink()
@@ -144,11 +146,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--katrain-dir', type=Path,
                         default=PROJECT_DIR.parent / 'KaTrain-1.20.0' / 'KaTrain')
-    parser.add_argument('--python', type=Path, default=Path(sys.executable), help='已不需要，仅为兼容保留 / No longer needed; kept for compatibility')
     parser.add_argument('--uninstall', action='store_true', help='恢复原始界面 / Restore the original UI')
     args = parser.parse_args()
     try:
-        result = uninstall(args.katrain_dir) if args.uninstall else install(args.katrain_dir, args.python)
+        result = uninstall(args.katrain_dir) if args.uninstall else install(args.katrain_dir)
     except (OSError, ValueError) as error:
         parser.exit(1, f'扩展操作失败 / Plugin operation failed: {error}\n')
     print(json.dumps(result, ensure_ascii=False, indent=2))

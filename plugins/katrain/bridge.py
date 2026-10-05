@@ -14,13 +14,17 @@ from collections import OrderedDict
 from contextlib import nullcontext
 from dataclasses import dataclass
 import hashlib
-import json
 from pathlib import Path
 import queue
 import threading
 import time
 from types import SimpleNamespace
 import uuid
+
+if __package__ == "katrain_explainer":
+    from .engine import analysis_payload, validate_analysis
+else:
+    from explainer.engine import analysis_payload, validate_analysis
 
 
 def bilingual(zh, en):
@@ -44,9 +48,9 @@ QUERY_PRIORITY = 1000
 
 def _core():
     """The pipeline modules: beside this file when installed, else the repository package."""
-    try:
+    if __package__ == "katrain_explainer":
         from . import service, sgf
-    except ImportError:
+    else:
         from explainer import service, sgf
     return service, sgf
 
@@ -76,23 +80,11 @@ class KaTrainEngineClient:
 
     @staticmethod
     def _payload(engine, game, request):
-        forced, actor = request.get("forced_move"), request.get("actor")
-        if forced and actor not in ("B", "W"):
-            raise ValueError("限制候选时必须指定执棋方 / A forced query requires actor B or W")
-        ownership = bool(request.get("ownership", True))
         settings = dict(getattr(engine, "override_settings", None) or {})
         settings.update({"reportAnalysisWinratesAs": "BLACK", "wideRootNoise": 0.0})
-        payload = {
-            "initialStones": game.initial_stones, "initialPlayer": game.initial_player,
-            "moves": request["moves"], "rules": game.rules, "komi": game.komi,
-            "boardXSize": game.board_size, "boardYSize": game.board_size,
-            "maxVisits": request["visits"], "includeOwnership": ownership,
-            "includeMovesOwnership": ownership, "includePVVisits": True, "analysisPVLen": 8,
-            "priority": getattr(engine, "base_priority", 0) + QUERY_PRIORITY,
-            "overrideSettings": settings,
-        }
-        if forced:
-            payload["allowMoves"] = [{"player": actor, "moves": [forced], "untilDepth": 1}]
+        payload = analysis_payload(game, request)
+        payload.update(priority=getattr(engine, "base_priority", 0) + QUERY_PRIORITY,
+                       overrideSettings=settings)
         return payload
 
     def query(self, game, moves, visits, forced_move=None, actor=None):
@@ -106,18 +98,18 @@ class KaTrainEngineClient:
         answers, callbacks = queue.Queue(), []
         allowance = QUERY_SECONDS + EXTRA_SECONDS_PER_QUERY * (len(requests) - 1)
         deadline = min(time.monotonic() + allowance, self.deadline)
-        for index, request in enumerate(requests):
-            def done(analysis, partial_result=False, index=index):
-                if not partial_result:
-                    answers.put((index, analysis, None))
-
-            def failed(analysis, index=index):
-                answers.put((index, None, analysis))
-
-            callbacks.append(done)
-            engine.send_query(self._payload(engine, game, request), done, failed)
         results = {}
         try:
+            for index, request in enumerate(requests):
+                def done(analysis, partial_result=False, index=index):
+                    if not partial_result:
+                        answers.put((index, analysis, None))
+
+                def failed(analysis, index=index):
+                    answers.put((index, None, analysis))
+
+                callbacks.append(done)
+                engine.send_query(self._payload(engine, game, request), done, failed)
             while len(results) < len(requests):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -126,8 +118,7 @@ class KaTrainEngineClient:
                 if error is not None:
                     detail = error.get("error", error) if isinstance(error, dict) else error
                     raise ValueError("KataGo: " + str(detail))
-                if not analysis.get("moveInfos") or "rootInfo" not in analysis:
-                    raise ValueError("引擎没有返回可用着法 / Engine returned no usable moves")
+                validate_analysis(analysis)
                 results[index] = analysis
         except queue.Empty:
             self._abandon(engine, callbacks)
@@ -253,11 +244,7 @@ def export_position(game, choice="actual"):
 
 
 class KaTrainBridge:
-    def __init__(self, katrain, settings=None):
-        if settings is None:
-            config_path = Path(__file__).with_name("settings.json")
-            settings = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
-        self.settings = settings
+    def __init__(self, katrain):
         self.katrain = katrain
         self._contexts = OrderedDict()
         self._busy = False
@@ -331,7 +318,3 @@ class KaTrainBridge:
         if not branch or type(ply) is not int or not 0 <= ply < len(branch["steps"]):
             raise BridgeError("变化步骤无效。 / Invalid continuation step.")
         return branch["steps"][ply]["board"]
-
-    def clear_preview(self):
-        """Panel compatibility; preview state belongs entirely to the panel."""
-        return None

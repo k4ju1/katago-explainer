@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-04",
+  "scope": "Two local runs of one sample; not a general performance benchmark or an expert explanation rating.",
+  "environment": {
+    "python": "3.12.14",
+    "engine": "KataGo v1.18.1 / OpenCL",
+    "model": "b10c384h6nbttflrs.bin.gz",
+    "gpu": "RTX 5070 Laptop GPU"
+  },
+  "regression_tests": 158,
+  "sample": "mi-flying-dagger-demo.sgf",
+  "move": 17,
+  "selected_move": "G6",
+  "budgets": {
+    "root_visits": 800,
+    "candidate_visits": 600,
+    "trace_visits": 200,
+    "tenuki_visits": 300,
+    "pv_plies": 6
+  },
+  "runs": [
+    {"mode": "first-load", "elapsed_seconds": 7.907, "ai_move": "B5", "variation_plies": [6, 6]},
+    {"mode": "warm-reuse", "elapsed_seconds": 0.860, "ai_move": "B5", "variation_plies": [6, 6]}
+  ],
+  "cleanup": {"returncode": 0, "process_stopped": true, "reader_threads_stopped": true}
+}

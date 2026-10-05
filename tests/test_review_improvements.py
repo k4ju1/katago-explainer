@@ -42,6 +42,16 @@ class VerdictTests(unittest.TestCase):
         comparison = next(item for item in result['reasons'] if item['id'] == 'candidate-comparison')
         self.assertIn('基本等价', comparison['text']['zh'])
 
+    def test_tiers_use_search_precision_before_display_rounding(self):
+        near = self.explain({'move': 'Q4', 'winrate': 49.04, 'score_lead': -.49},
+                            {'move': 'D16', 'winrate': 50.0, 'score_lead': 0.0}, 'D16')
+        self.assertEqual(near['verdict']['level'], 'equal')
+        comparison = next(item for item in near['reasons'] if item['id'] == 'candidate-comparison')
+        self.assertIn('基本等价', comparison['text']['zh'])
+        boundary = self.explain({'move': 'Q4', 'winrate': 49.0, 'score_lead': -.5},
+                                {'move': 'D16', 'winrate': 50.0, 'score_lead': 0.0}, 'D16')
+        self.assertEqual(boundary['verdict']['level'], 'slight')
+
     def test_loss_is_stated_first_with_the_expected_reply(self):
         branches = [{'id': 'selected', 'steps': [{'ply': 1, 'player': 'B', 'move': 'Q4'},
                                                  {'ply': 2, 'player': 'W', 'move': 'R6'}]}]
@@ -202,6 +212,13 @@ class TenukiEvidenceTests(unittest.TestCase):
         self.assertIn('gote', terms)
         self.assertNotIn('sente', terms)
 
+    def test_local_follow_up_without_search_gain_does_not_claim_sente(self):
+        result = self.explain({'ignored': {'eval': {'winrate': 47.0, 'score_lead': -.5}, 'followup': 'C6'}})
+        reason = next(item for item in result['reasons'] if item['id'] == 'followup-if-ignored')
+        self.assertIn('局部后续候选', reason['text']['zh'])
+        self.assertIn('不能判断对方必须应一手', reason['text']['zh'])
+        self.assertNotIn('sente', [term['id'] for term in result['terms']])
+
     def test_no_evidence_no_claim(self):
         ids = [item['id'] for item in self.explain({})['reasons']]
         self.assertNotIn('move-value', ids)
@@ -252,6 +269,7 @@ class BatchProtocolTests(unittest.TestCase):
 
     def final(self, number):
         return {'id': f'position-{number}', 'isDuringSearch': False,
+                'rootInfo': {'currentPlayer': 'B', 'winrate': .5, 'scoreLead': 0, 'visits': number},
                 'moveInfos': [{'move': 'D4', 'order': 0, 'winrate': .5, 'scoreLead': 0, 'visits': number}]}
 
     def test_answers_return_in_request_order_whatever_order_they_arrive(self):

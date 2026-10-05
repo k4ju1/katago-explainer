@@ -54,15 +54,13 @@ class KaTrainInstallerTests(unittest.TestCase):
         (self.project / 'explainer').mkdir()
         for name in installer.CORE_FILES:
             (self.project / 'explainer' / name).write_bytes(f'# fake core {name}\n'.encode('utf-8'))
-        self.python = self.base / 'fake-python.exe'
-        self.python.write_bytes(b'fake Python, never launched')
         self.backup = self.gui.with_name('gui.kv.explainer-original')
         self.manifest = self.katrain / '_internal' / 'katrain-explainer-install.json'
         self.package = self.katrain / '_internal' / 'katrain_explainer'
         self.assertEqual(installer.digest(ORIGINAL), installer.ORIGINAL_GUI_SHA256)
 
     def install(self):
-        return installer.install(self.katrain, python_path=self.python, project_dir=self.project)
+        return installer.install(self.katrain, project_dir=self.project)
 
     def test_patch_adds_imports_and_one_dock(self):
         patched = installer.patch_gui(ORIGINAL)
@@ -97,7 +95,7 @@ class KaTrainInstallerTests(unittest.TestCase):
         self.assertEqual(self.gui.read_bytes(), ORIGINAL)
         self.assertFalse(self.manifest.exists())
         self.assertFalse(self.backup.exists())
-        for name in ('__init__.py', 'bridge.py', 'panel.py', 'settings.json'):
+        for name in ('__init__.py', 'bridge.py', 'panel.py'):
             self.assertFalse((self.package / name).exists())
         self.assertEqual(self.exe.read_bytes(), b'fake executable, never launched')
 
@@ -107,12 +105,9 @@ class KaTrainInstallerTests(unittest.TestCase):
             self.assertTrue((self.package / name).is_file(), name)
         self.assertEqual((self.package / 'service.py').read_bytes(), b'# fake core service.py\n')
         self.assertFalse((self.package / 'server.py').exists())
-        settings = json.loads((self.package / 'settings.json').read_text(encoding='utf-8'))
-        self.assertEqual(settings['engine'], 'katrain')
-        self.assertNotIn('python_path', settings)
-        self.assertNotIn('backend_url', settings)
+        self.assertFalse((self.package / 'settings.json').exists())
         manifest = json.loads(self.manifest.read_text(encoding='utf-8'))
-        self.assertEqual(manifest['version'], 3)
+        self.assertEqual(manifest['version'], 4)
         installer.uninstall(self.katrain)
         for name in installer.PLUGIN_FILES + installer.CORE_FILES:
             self.assertFalse((self.package / name).exists(), name)
@@ -120,12 +115,44 @@ class KaTrainInstallerTests(unittest.TestCase):
     def test_update_removes_files_an_older_version_installed(self):
         self.install()
         manifest = json.loads(self.manifest.read_text(encoding='utf-8'))
-        manifest['files'].append('retired_module.py')
+        manifest['files'].extend(['retired_module.py', 'settings.json'])
         self.manifest.write_text(json.dumps(manifest), encoding='utf-8')
         (self.package / 'retired_module.py').write_bytes(b'# old\n')
+        (self.package / 'settings.json').write_bytes(b'{"engine":"katrain"}')
         self.install()
         self.assertFalse((self.package / 'retired_module.py').exists())
+        self.assertFalse((self.package / 'settings.json').exists())
         self.assertTrue((self.package / 'bridge.py').is_file())
+
+    def test_failed_stale_deletion_restores_deleted_files_and_previous_install(self):
+        self.install()
+        manifest = json.loads(self.manifest.read_text(encoding='utf-8'))
+        manifest['files'].extend(['old_first.py', 'old_second.py'])
+        self.manifest.write_text(json.dumps(manifest), encoding='utf-8')
+        first, second = self.package / 'old_first.py', self.package / 'old_second.py'
+        first.write_bytes(b'# earlier version first\n')
+        second.write_bytes(b'# earlier version second\n')
+        gui_before, manifest_before = self.gui.read_bytes(), self.manifest.read_bytes()
+        bridge_before = (self.package / 'bridge.py').read_bytes()
+        (self.source / 'bridge.py').write_bytes(b'# new plugin version\n')
+        original_unlink = Path.unlink
+
+        def fail_second(path, *args, **kwargs):
+            if path == second:
+                raise OSError('simulated stale deletion failure')
+            return original_unlink(path, *args, **kwargs)
+
+        with patch.object(Path, 'unlink', fail_second):
+            with self.assertRaisesRegex(OSError, 'stale deletion'):
+                self.install()
+        self.assertEqual(first.read_bytes(), b'# earlier version first\n')
+        self.assertEqual(second.read_bytes(), b'# earlier version second\n')
+        self.assertEqual(self.gui.read_bytes(), gui_before)
+        self.assertEqual(self.manifest.read_bytes(), manifest_before)
+        self.assertEqual((self.package / 'bridge.py').read_bytes(), bridge_before)
+        self.assertEqual(self.install()['status'], 'installed')
+        self.assertFalse(first.exists())
+        self.assertFalse(second.exists())
 
     def test_missing_core_module_is_refused_before_touching_katrain(self):
         (self.project / 'explainer' / 'joseki.py').unlink()
@@ -199,7 +226,7 @@ class KaTrainInstallerTests(unittest.TestCase):
         self.assertFalse(self.backup.exists())
         self.assertFalse(self.manifest.exists())
         self.assertFalse(self.gui.with_name('gui.kv.explainer-tmp').exists())
-        for name in ('__init__.py', 'bridge.py', 'panel.py', 'settings.json'):
+        for name in ('__init__.py', 'bridge.py', 'panel.py'):
             self.assertFalse((self.package / name).exists())
         # The rollback must leave a distribution that can be installed again.
         self.assertEqual(self.install()['status'], 'installed')

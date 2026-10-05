@@ -7,6 +7,7 @@ warm between explanations and stops it after a quiet period.
 
 from dataclasses import dataclass
 import json
+import math
 import os
 from pathlib import Path
 import queue
@@ -103,6 +104,40 @@ def discover_settings(project_dir, overrides=None, environ=None, home=None):
     return EngineSettings(engine=chosen('engine', engine), model=model,
                           config=chosen('config', bundled / 'KataGo' / 'analysis_config.cfg'),
                           tuner=chosen('tuner', _pick_tuner(home / '.katrain' / 'opencltuning', model)))
+
+
+def analysis_payload(game, request):
+    """Build the position query shared by standalone and native engine clients.
+
+    Transport IDs, priority and engine overrides belong to each client. The
+    game history and first-move restriction must mean the same in both.
+    """
+    forced, actor = request.get('forced_move'), request.get('actor')
+    if forced and actor not in ('B', 'W'):
+        raise ValueError('限制候选时必须指定执棋方 / A forced query requires actor B or W')
+    ownership = bool(request.get('ownership', True))
+    payload = {
+        'initialStones': game.initial_stones, 'initialPlayer': game.initial_player,
+        'moves': request['moves'], 'rules': game.rules, 'komi': game.komi,
+        'boardXSize': game.board_size, 'boardYSize': game.board_size,
+        'maxVisits': request['visits'], 'includeOwnership': ownership,
+        'includeMovesOwnership': ownership, 'includePVVisits': True, 'analysisPVLen': 8,
+    }
+    if forced:
+        payload['allowMoves'] = [{'player': actor, 'moves': [forced], 'untilDepth': 1}]
+    return payload
+
+
+def validate_analysis(response):
+    """Reject incomplete or changed questions before interpreting an answer."""
+    if not isinstance(response, dict):
+        raise ValueError('引擎没有返回可用着法 / Engine returned no usable moves')
+    if 'error' in response:
+        raise ValueError('KataGo: ' + str(response['error']))
+    if 'warning' in response:
+        raise ValueError('引擎报告规则或输入警告，未生成讲解 / Engine warning: ' + str(response['warning']))
+    if response.get('noResults') or not response.get('moveInfos') or not response.get('rootInfo'):
+        raise ValueError('引擎没有返回可用着法 / Engine returned no usable moves')
 
 
 class AnalysisEngine:
@@ -221,21 +256,6 @@ class AnalysisEngine:
         self._write_run_summary()
         self.attached = False
 
-    def _payload(self, game, query_id, moves, visits, forced_move=None, actor=None, ownership=True):
-        if forced_move and actor not in ('B', 'W'):
-            raise ValueError('限制候选时必须指定执棋方 / A forced query requires actor B or W')
-        payload = {
-            'id': query_id, 'initialStones': game.initial_stones,
-            'initialPlayer': game.initial_player, 'moves': moves,
-            'rules': game.rules, 'komi': game.komi,
-            'boardXSize': game.board_size, 'boardYSize': game.board_size,
-            'maxVisits': visits, 'includeOwnership': bool(ownership),
-            'includeMovesOwnership': bool(ownership), 'includePVVisits': True, 'analysisPVLen': 8,
-        }
-        if forced_move:
-            payload['allowMoves'] = [{'player': actor, 'moves': [forced_move], 'untilDepth': 1}]
-        return payload
-
     def query(self, game, moves, visits, forced_move=None, actor=None):
         return self.query_many(game, [{'moves': moves, 'visits': visits,
                                        'forced_move': forced_move, 'actor': actor}])[0]
@@ -252,9 +272,7 @@ class AnalysisEngine:
         for request in requests:
             self.request_counter += 1
             query_id = f'position-{self.request_counter}'
-            payload = self._payload(game, query_id, request['moves'], request['visits'],
-                                    request.get('forced_move'), request.get('actor'),
-                                    request.get('ownership', True))
+            payload = {'id': query_id, **analysis_payload(game, request)}
             ids.append(query_id)
             encoded.append(json.dumps(payload, ensure_ascii=False, separators=(',', ':')))
         block = ''.join(line + '\n' for line in encoded)
@@ -304,14 +322,12 @@ class AnalysisEngine:
             if 'warning' in response:
                 self.warnings.append(response)
             if 'error' in response:
-                raise ValueError('KataGo: ' + str(response['error']))
+                validate_analysis(response)
             if response.get('isDuringSearch') is False:
-                if not response.get('moveInfos') or response.get('noResults'):
-                    raise ValueError('引擎没有返回可用着法 / Engine returned no usable moves')
+                validate_analysis(response)
                 # An implicit rule conversion changes the question being answered.
                 if self.warnings:
-                    raise ValueError('引擎报告规则或输入警告，未生成讲解 / Engine warning: ' +
-                                     str(self.warnings[-1].get('warning', self.warnings[-1])))
+                    validate_analysis(self.warnings[-1])
                 pending.discard(response['id'])
                 finals[response['id']] = response
         return [finals[query_id] for query_id in ids]
@@ -426,6 +442,8 @@ def actor_metric(info, player):
         raise ValueError('评估视角必须是 B 或 W / Perspective must be B or W')
     black_probability = float(info['winrate'])
     lead = float(info['scoreLead'])
+    if not math.isfinite(black_probability) or not 0 <= black_probability <= 1 or not math.isfinite(lead):
+        raise ValueError('引擎评估数值无效 / Invalid engine evaluation values')
     return {'winrate': (black_probability if player == 'B' else 1 - black_probability) * 100,
             'score_lead': lead if player == 'B' else -lead,
             'black_winrate': black_probability * 100,

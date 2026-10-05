@@ -41,10 +41,8 @@ SUNKEN = [0.075, 0.090, 0.116, 1]         # wells: clock, graph, text areas
 BUTTON = [0.300, 0.346, 0.415, 1]         # raised keys
 ACCENT = [0.980, 0.760, 0.290, 1]         # amber: the current mode and player
 ACTION = [0.250, 0.640, 0.450, 1]         # green: the explanation buttons
-ACTION_DOWN = [0.180, 0.480, 0.330, 1]
 EDGE = [1, 1, 1, 0.07]                    # hairline on raised surfaces
 TEXT_DIM = [0.70, 0.75, 0.81, 1]
-SHADOW = [0, 0, 0, 0.55]
 
 _installed = False
 _gradients = {}
@@ -261,7 +259,6 @@ def _patch_board(badukpan):
 # --------------------------------------------------------- stone placement
 
 PENDING_SECONDS = 1.5
-placement_log = []  # (seconds from release to the stone being on screen, how) for diagnostics
 
 
 def _patch_placement(badukpan, main):
@@ -374,8 +371,6 @@ def _patch_placement(badukpan, main):
         current = game.current_node if game else None
         if current is not None and current is not node:
             # The real board now shows the move (or the game moved on): drop the stand-in.
-            placement_log.append((time.perf_counter() - started, "board"))
-            del placement_log[:-50]
             self.kx_pending = None
             self.draw_hover_contents()
 

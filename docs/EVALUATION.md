@@ -1,0 +1,69 @@
+# Validation / 验证
+
+自动回归、真实引擎样例和人工界面验收分别记录；接口可用不等于解释质量已被证明。
+
+Regression, real-engine demos and manual UI acceptance are separate evidence.
+Protocol success is not an explanation-quality score.
+
+## Regression / 自动回归
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+无需 GPU 或额外 Python 依赖。覆盖规则与棋谱、评估视角、候选限制、PV 信任门槛、双语依据、
+定式历史与对称、超时清理、原生分支导出与查询取消、安装校验回滚、网页资源契约。
+
+GPU-free tests cover rules/SGF, metric perspective, restrictions, PV trust,
+bilingual evidence, references, engine lifetime, native ancestry/cancellation,
+installation transactions and web resources.
+
+CI 配置覆盖 Windows/Linux 与 Python 3.11/3.12。配置存在不等于远端已经运行；
+本机与远端结果分别查看。
+
+The CI configuration covers those operating systems and Python versions.
+Its presence does not establish a completed remote run.
+
+## Real engine / 真实引擎
+
+```powershell
+python scripts/validate_demo.py examples/mi-flying-dagger-demo.sgf --move 17 --repeat 2
+```
+
+可传入 `--engine`、`--model`、`--config`、`--tuner`。首次加载与热复用分别记录，
+输出完整请求、响应、解释和简洁摘要到 `runs/`，默认不提交。
+
+Explicit paths are supported. First-load and warm requests retain full protocol
+data, explanations and a compact summary, ignored by Git by default.
+
+2026-10-04 本机验证：Python 3.12.14、KataGo v1.18.1 OpenCL、
+`b10c384h6nbttflrs.bin.gz`、RTX 5070 Laptop GPU。158 项自动测试通过。
+
+Local validation on that date used the versions/model above and passed 158 tests.
+
+| 样例 / Sample | 首次加载 / First load | 热复用 / Warm reuse | 结果 / Result |
+| --- | --- | --- | --- |
+| 芈氏飞刀，第 17 手黑 G6 / Mi, move 17 | 7.907 s | 0.860 s | 两条六手变化、外扳入口参照、原始一选 B5 / Two six-ply lines, the reference, original choice B5 |
+
+这是一条固定样例的两次运行，不是平均性能指标。各轮根搜索与候选补搜使用当前架构预算；
+结束后确认引擎退出码为 0、进程与读取线程均停止。摘要保存在本机
+`runs/portfolio-validation/summary.json`，公开摘要见[验证记录](assets/validation.json)。
+
+These are two runs of one fixed sample, not average latency. Engine exit code 0
+and stopped process/readers were confirmed. The public summary retains the
+measurements without machine-specific paths.
+
+## Interface / 界面
+
+网页使用实际浏览器检查中英切换、样例定位、异步状态、标签、逐手播放和窄屏布局；
+`docs/assets/preview.png` 保存当前交互演示。
+
+Browser checks cover languages, sample positions, async status, tabs, replay
+and narrow-screen layout. The preview image records the current demo.
+
+此前用户确认过原生棋盘、按钮和讲解弹窗可用；后续皮肤与参考功能的代码检查不能替代当前
+版本的完整人工验收。原生自动检查覆盖桥接与安装，不包含专业棋手对解释质量的评分。
+
+Earlier user-assisted checks confirmed the native board, buttons and viewer.
+Later code checks do not replace full current-version manual acceptance;
+native automated coverage targets integration, not expert explanation ratings.

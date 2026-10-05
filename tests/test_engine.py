@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 
-from explainer.engine import AnalysisEngine, actor_metric
+from explainer.engine import AnalysisEngine, actor_metric, analysis_payload, validate_analysis
 
 
 class FakeProcess:
@@ -45,6 +45,50 @@ class ActorMetricTests(unittest.TestCase):
         self.assertEqual(result['score_lead'], 3.25)
         self.assertEqual(result['visits'], 0)
 
+    def test_nonfinite_and_out_of_range_evaluations_are_rejected(self):
+        for probability, lead in ((float('nan'), 0), (float('inf'), 0), (-.1, 0), (1.1, 0),
+                                  (.5, float('nan')), (.5, float('inf'))):
+            with self.subTest(probability=probability, lead=lead):
+                with self.assertRaisesRegex(ValueError, 'Invalid engine evaluation'):
+                    actor_metric({'winrate': probability, 'scoreLead': lead}, 'B')
+
+
+class SharedAnalysisProtocolTests(unittest.TestCase):
+    game = SimpleNamespace(initial_stones=[['B', 'Q16']], initial_player='W',
+                           rules='aga', komi=.5, board_size=19)
+
+    def test_native_and_standalone_share_history_restriction_and_ownership_intent(self):
+        request = {'moves': [['W', 'D4'], ['B', 'pass']], 'visits': 200,
+                   'forced_move': 'C3', 'actor': 'W', 'ownership': False}
+        payload = analysis_payload(self.game, request)
+        self.assertEqual(payload['initialStones'], [['B', 'Q16']])
+        self.assertEqual(payload['initialPlayer'], 'W')
+        self.assertEqual(payload['moves'], request['moves'])
+        self.assertEqual((payload['rules'], payload['komi']), ('aga', .5))
+        self.assertFalse(payload['includeOwnership'])
+        self.assertFalse(payload['includeMovesOwnership'])
+        self.assertEqual(payload['allowMoves'], [{'player': 'W', 'moves': ['C3'], 'untilDepth': 1}])
+        self.assertNotIn('id', payload)
+        self.assertNotIn('priority', payload)
+        self.assertNotIn('overrideSettings', payload)
+
+    def test_forced_query_cannot_omit_its_player(self):
+        with self.assertRaisesRegex(ValueError, 'requires actor B or W'):
+            analysis_payload(self.game, {'moves': [], 'visits': 200, 'forced_move': 'C3'})
+
+    def test_unusable_or_changed_analysis_cannot_be_explained(self):
+        valid = {'rootInfo': {'winrate': .5}, 'moveInfos': [{'move': 'C3'}]}
+        self.assertIsNone(validate_analysis(valid))
+        for response, message in ((dict(valid, error='Illegal move'), 'Illegal move'),
+                                  (dict(valid, warning='Rule was converted'), 'Rule was converted'),
+                                  (dict(valid, noResults=True), 'no usable moves'),
+                                  (dict(valid, rootInfo=None), 'no usable moves'),
+                                  (dict(valid, moveInfos=[]), 'no usable moves'),
+                                  ([], 'no usable moves')):
+            with self.subTest(response=response):
+                with self.assertRaisesRegex(ValueError, message):
+                    validate_analysis(response)
+
 
 class EngineProtocolTests(unittest.TestCase):
     def setUp(self):
@@ -62,6 +106,7 @@ class EngineProtocolTests(unittest.TestCase):
 
     def final(self, **overrides):
         result = {'id': 'position-1', 'isDuringSearch': False,
+                  'rootInfo': {'currentPlayer': 'B', 'winrate': 0.4, 'scoreLead': -1.2, 'visits': 512},
                   'moveInfos': [{'move': 'C3', 'order': 0, 'winrate': 0.4,
                                  'scoreLead': -1.2, 'visits': 512}]}
         result.update(overrides)
@@ -112,7 +157,7 @@ class EngineProtocolTests(unittest.TestCase):
             self.query()
 
     def test_empty_and_no_results_final_responses_are_rejected(self):
-        for final in (self.final(moveInfos=[]), self.final(noResults=True)):
+        for final in (self.final(moveInfos=[]), self.final(noResults=True), self.final(rootInfo=None)):
             with self.subTest(final=final):
                 self.client.request_counter = 0
                 self.client.responses.put(final)

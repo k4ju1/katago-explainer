@@ -80,7 +80,6 @@ class Board:
             if point is None or point in self.cells:
                 raise BoardError("摆子坐标重复或无效。 / Duplicate or invalid setup point.")
             self.cells[point] = player
-        self._seen_positions = {self._position()}
         self._seen_situations = {(self._position(), self.to_play)}
 
     def copy(self) -> "Board":
@@ -88,7 +87,6 @@ class Board:
         result.cells = dict(self.cells)
         result.last_move, result.ko = self.last_move, self.ko
         result.move_number = self.move_number
-        result._seen_positions = set(self._seen_positions)
         result._seen_situations = set(self._seen_situations)
         return result
 
@@ -154,9 +152,6 @@ class Board:
             "ko": point_to_vertex(self.ko, self.size) if self.ko else None,
         }
 
-    def to_matrix(self) -> list[list[str | None]]:
-        return [[self.cells.get((x, y)) for x in range(self.size)] for y in range(self.size)]
-
     def play(self, player: str, move: str) -> dict:
         """Apply one legal move, or leave the board unchanged on an error."""
         other(player)
@@ -218,7 +213,6 @@ class Board:
                    and len(move_liberties) == 1 else None)
         self.last_move, self.to_play = vertex, next_player
         self.move_number += 1
-        self._seen_positions.add(position)
         self._seen_situations.add((position, next_player))
         return {
             "player": player, "move": vertex, "pass": False,

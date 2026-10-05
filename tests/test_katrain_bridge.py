@@ -132,14 +132,13 @@ class BridgeTests(unittest.TestCase):
 
     def test_snapshot_preview_does_not_change_native_tree_or_board(self):
         app = self.app()
-        bridge = KaTrainBridge(app, {})
+        bridge = KaTrainBridge(app)
         bridge._contexts["test"] = export_position(app.game, "actual")
         expected = {"size": 19, "stones": []}
         result = {"_katrain_bridge_token": "test", "branches": [{"id": "selected", "steps": [{"ply": 0, "board": expected}]}]}
         node = app.game.current_node
         self.assertTrue(bridge.is_current(result))
         self.assertEqual(bridge.show_step(result, "selected", 0), expected)
-        bridge.clear_preview()
         self.assertIs(app.game.current_node, node)
         app.board_gui.set_animating_pv.assert_not_called()
         app.game.root.properties["KM"] = [7.5]
@@ -150,7 +149,7 @@ class BridgeTests(unittest.TestCase):
     def test_analyze_runs_the_pipeline_on_katrains_engine_without_a_server(self):
         app, finished, observed = self.app(), threading.Event(), {}
         app.engine = FakeKaTrainEngine()
-        bridge = KaTrainBridge(app, {})
+        bridge = KaTrainBridge(app)
 
         def success(value):
             observed.update(result=value, thread=threading.current_thread())
@@ -194,7 +193,7 @@ class BridgeTests(unittest.TestCase):
                 app.game.current_node = app.game.current_node.parent
             original(query, callback, error_callback, **kwargs)
         app.engine.send_query = navigate_then_send
-        bridge = KaTrainBridge(app, {})
+        bridge = KaTrainBridge(app)
 
         def failure(error):
             errors.append(error)
@@ -209,7 +208,7 @@ class BridgeTests(unittest.TestCase):
             with self.subTest(engine=engine):
                 app, finished, errors = self.app(), threading.Event(), []
                 app.engine = engine
-                bridge = KaTrainBridge(app, {})
+                bridge = KaTrainBridge(app)
 
                 def failure(error):
                     errors.append(error)
@@ -298,6 +297,37 @@ class EngineClientTests(unittest.TestCase):
             KaTrainEngineClient(SimpleNamespace(engine=engine)).query(self.game, [], 100)
         with self.assertRaises(EngineUnavailable):
             KaTrainEngineClient(SimpleNamespace(engine=None)).query(self.game, [], 100)
+
+    def test_dispatch_failure_cancels_already_queued_owned_searches(self):
+        engine = FakeKaTrainEngine(answer=False)
+        engine.queries["QUERY:other"] = (lambda *args: None, None, 0, None, None)
+        send = engine.send_query
+
+        def fail_second(query, callback, error_callback, **kwargs):
+            if engine.sent:
+                raise OSError("engine pipe closed")
+            send(query, callback, error_callback, **kwargs)
+
+        engine.send_query = fail_second
+        client = KaTrainEngineClient(SimpleNamespace(engine=engine))
+        with self.assertRaisesRegex(OSError, "pipe closed"):
+            client.query_many(self.game, [{"moves": [], "visits": 100}, {"moves": [], "visits": 100}])
+        self.assertEqual(engine.terminated, ["QUERY:1"])
+        self.assertTrue(engine.alive)
+
+    def test_invalid_final_analysis_cancels_pending_owned_searches(self):
+        engine = FakeKaTrainEngine(answer=False)
+        send = engine.send_query
+
+        def invalid_result(query, callback, error_callback, **kwargs):
+            send(query, callback, error_callback, **kwargs)
+            callback({"rootInfo": {"winrate": .5}, "moveInfos": []}, False)
+
+        engine.send_query = invalid_result
+        with self.assertRaises(ValueError):
+            KaTrainEngineClient(SimpleNamespace(engine=engine)).query_many(
+                self.game, [{"moves": [], "visits": 100}, {"moves": [], "visits": 100}])
+        self.assertEqual(sorted(engine.terminated), ["QUERY:1", "QUERY:2"])
 
 
 if __name__ == "__main__":

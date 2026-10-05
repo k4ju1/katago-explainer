@@ -1,10 +1,27 @@
 @echo off
 title KataGo Explainer
 cd /d "%~dp0"
-set "explainer_python=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-if exist "%explainer_python%" (
-    "%explainer_python%" -m explainer.server --open-browser
-) else (
-    python -m explainer.server --open-browser
+if defined KATAGO_EXPLAINER_PYTHON (
+    "%KATAGO_EXPLAINER_PYTHON%" -m explainer.server --open-browser %*
+    goto finish
 )
+if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" -m explainer.server --open-browser %*
+    goto finish
+)
+py -3 -c "import sys; assert sys.version_info >= (3, 11)" >nul 2>&1
+if not errorlevel 1 (
+    py -3 -m explainer.server --open-browser %*
+    goto finish
+)
+python -c "import sys; assert sys.version_info >= (3, 11)" >nul 2>&1
+if not errorlevel 1 (
+    python -m explainer.server --open-browser %*
+    goto finish
+)
+echo Python 3.11 or later is required.
+echo Install Python or set KATAGO_EXPLAINER_PYTHON to its executable path.
+pause
+exit /b 1
+:finish
 if errorlevel 1 pause

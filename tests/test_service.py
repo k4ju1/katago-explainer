@@ -22,6 +22,10 @@ class FakeEngine:
     def __exit__(self, *args):
         pass
 
+    def query_many(self, game, requests):
+        return [self.query(game, request['moves'], request['visits'],
+                           request.get('forced_move'), request.get('actor')) for request in requests]
+
     def query(self, game, moves, visits, forced_move=None, actor=None):
         board = Board(game.board_size, game.initial_stones, game.initial_player, game.rules)
         for player, move in moves:

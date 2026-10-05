@@ -12,6 +12,8 @@ one long text, so the answer is visible without scrolling.
 from __future__ import annotations
 
 import math
+from urllib.parse import urlsplit
+import webbrowser
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -24,12 +26,12 @@ from kivy.metrics import dp, sp
 from kivy.properties import ListProperty, NumericProperty, ObjectProperty
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.widget import Widget
+from kivy.utils import escape_markup
 
 from katrain.core.lang import i18n
 from katrain.gui.theme import Theme
@@ -164,6 +166,20 @@ def _wrap_label(text, font_size=None, color=None, bold=False):
                   color=color or Theme.TEXT_COLOR, bold=bold, size_hint_y=None, halign="left", valign="top")
     label.bind(width=lambda widget, width: setattr(widget, "text_size", (width, None)))
     label.bind(texture_size=lambda widget, texture: setattr(widget, "height", texture[1]))
+    return label
+
+
+def _source_label(title, url):
+    """Keep references readable; open only regular web links when clicked."""
+    label = _wrap_label(title, fs(12), LEVEL_COLORS["reference"])
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return label
+    if parsed.scheme.lower() in ("http", "https") and parsed.netloc:
+        label.markup = True
+        label.text = "[ref=source]↗ " + escape_markup(_flow(title)) + "[/ref]"
+        label.bind(on_ref_press=lambda *_: webbrowser.open(url))
     return label
 
 
@@ -537,9 +553,9 @@ class KaTrainExplainerPanel(BoxLayout):
                     self._bridge = KaTrainBridge(gui)
                     self._initialization_error = None
                 except Exception as error:
-                    # A broken plugin setting must not stop KaTrain from opening.
+                    # A broken plugin must not stop KaTrain from opening.
                     self._initialization_error = str(error)
-                    self._dock_status.text = "插件设置读取失败 / Plugin settings error"
+                    self._dock_status.text = self._t("插件初始化失败", "Plugin initialization failed")
             if self._bridge is not None and self.parent is not None and not self._ready_logged:
                 Logger.info("KataGoExplainer: Native panel ready (KaTrain attached)")
                 self._ready_logged = True
@@ -567,6 +583,7 @@ class KaTrainExplainerPanel(BoxLayout):
         self._actual_button.font_name = self._ai_button.font_name = font
         if not self._language_chosen:  # follow KaTrain until the viewer's own switch is used
             self._language = viewer_language(language)
+        self._dock_label.text = self._t("着法讲解", "Move explanation")
 
     def _t(self, zh, en):
         return zh if self._language == "zh" else en
@@ -742,8 +759,6 @@ class KaTrainExplainerPanel(BoxLayout):
     def _on_dismiss(self, *_args):
         Window.unbind(on_key_down=self._on_key_down)
         self._stop_play()
-        if self._bridge:
-            self._bridge.clear_preview()
 
     def _on_key_down(self, _window, key, *_args):
         if not self._result or self._error:
@@ -1028,7 +1043,7 @@ class KaTrainExplainerPanel(BoxLayout):
                  (self._t("预计目差", "Score lead"), f"{_signed(selected.get('score_lead', 0))} {points}", None)]
         if alternative and difference:
             tiles.append((self._t(f"对比 {alternative.get('move')}（胜率·目）", f"vs {alternative.get('move')} (win · pts)"),
-                          f"{_signed(difference.get('winrate_pp', 0))}% · {_signed(difference.get('score_points', 0))}", accent))
+                          f"{_signed(difference.get('winrate_pp', 0))} pp · {_signed(difference.get('score_points', 0))}", accent))
         skipped = ((result.get("tenuki") or {}).get("pass") or {}).get("eval") or {}
         if skipped.get("score_lead") is not None and selected.get("score_lead") is not None:
             worth = selected["score_lead"] - skipped["score_lead"]
@@ -1064,7 +1079,7 @@ class KaTrainExplainerPanel(BoxLayout):
         for step in branch.get("steps", []):
             ply, metric = step.get("ply", 0), step.get("eval") or {}
             rate = metric.get("winrate")
-            delta = "" if previous is None or rate is None else f"  Δ {_signed(rate - previous)}"
+            delta = "" if previous is None or rate is None else f"  Δ {_signed(rate - previous)} pp"
             title = (self._t("起始局面", "Starting position") if ply == 0
                      else f"{ply}. {self._player_name(step.get('player'))} {step.get('move')}")
             row = ClickCard(background=CARD_ACTIVE if ply == self._ply else CARD, padding=(ds(14), ds(8), ds(12), ds(9)))
@@ -1117,8 +1132,8 @@ class KaTrainExplainerPanel(BoxLayout):
             if sequence:
                 card.add_widget(_wrap_label("\n".join(sequence), fs(13)))
             for source in match.get("sources") or []:
-                card.add_widget(_wrap_label(self._t("出处：", "Source: ") + self._localized(source.get("title"))
-                                            + ("\n" + str(source.get("url")) if source.get("url") else ""), fs(11), MUTED))
+                card.add_widget(_source_label(self._t("出处：", "Source: ") + self._localized(source.get("title")),
+                                              str(source.get("url") or "")))
             for note in match.get("notes") or []:
                 card.add_widget(_wrap_label("• " + self._localized(note), fs(12), MUTED))
             self._add(card)

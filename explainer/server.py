@@ -15,12 +15,18 @@ import webbrowser
 
 from .board import Board
 from .engine import EnginePool, discover_settings, stop_active_engines
-from .service import (CANDIDATE_VISITS, PV_PLIES, ROOT_VISITS, TENUKI_VISITS, TRACE_VISITS,
-                      explain_move, snapshot, text)
+from .service import (CANDIDATE_VISITS, PHASES, PV_PLIES, ROOT_VISITS, TENUKI_VISITS, TRACE_VISITS,
+                      explain_move, text)
 from .sgf import parse_sgf
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
+WEB_FILES = {
+    '/': ('index.html', 'text/html'),
+    '/index.html': ('index.html', 'text/html'),
+    '/styles.css': ('styles.css', 'text/css'),
+    '/app.js': ('app.js', 'text/javascript'),
+}
 JOSEKI_EXAMPLES = {
     'basic': ('joseki-demo.sgf', 4),
     'kick': ('kick-demo.sgf', 2),
@@ -57,10 +63,10 @@ def prune_runs(runs_dir, keep=KEPT_RUNS):
 
 def public_game(game, game_id):
     board = Board(game.board_size, game.initial_stones, game.initial_player, game.rules)
-    positions = [snapshot(board)]
+    positions = [board.snapshot()]
     for player, move in game.moves:
         board.play(player, move)
-        positions.append(snapshot(board))
+        positions.append(board.snapshot())
     return {'id': game_id, 'name': game.metadata.get('GN') or 'SGF',
             **game.to_dict(), 'positions': positions}
 
@@ -84,7 +90,8 @@ class Application:
         with self.lock:
             self.games[game_id] = (record, public)
             while len(self.games) > 12:
-                self.games.popitem(last=False)
+                oldest = next(key for key in self.games if key != self.default_game['id'])
+                self.games.pop(oldest)
         return public
 
     def state(self, game=None, uploaded=False):
@@ -100,6 +107,8 @@ class Application:
         move_index = payload.get('move_index')
         choice = payload.get('choice', 'ai')
         custom_move = payload.get('move')
+        if not isinstance(game_id, str) or not game_id:
+            raise ValueError('棋谱标识必须是字符串 / Game ID must be a non-empty string')
         if type(move_index) is not int:
             raise ValueError('手数必须是整数 / Move index must be an integer')
         if choice not in ('actual', 'ai'):
@@ -119,7 +128,7 @@ class Application:
                 raise ValueError('这里没有实战手，请选择 AI 推荐 / No recorded move here; choose AI')
             job_id = uuid.uuid4().hex
             job = {'id': job_id, 'status': 'queued',
-                   'progress': {'message': text('准备分析…', 'Preparing the analysis…'), 'completed': 0, 'total': 15}}
+                   'progress': {'message': text('准备分析…', 'Preparing the analysis…'), 'completed': 0, 'total': PHASES}}
             self.jobs[job_id] = job
             while len(self.jobs) > 20:
                 self.jobs.popitem(last=False)
@@ -168,15 +177,18 @@ def handler_for(app):
         def log_message(self, *args):
             pass
 
-        def json_response(self, payload, status=200):
-            encoded = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode('utf-8')
+        def send_bytes(self, encoded, content_type, status=200):
             self.send_response(status)
-            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Type', content_type + '; charset=utf-8')
             self.send_header('Content-Length', str(len(encoded)))
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.end_headers()
             self.wfile.write(encoded)
+
+        def json_response(self, payload, status=200):
+            encoded = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode('utf-8')
+            self.send_bytes(encoded, 'application/json', status)
 
         def permitted(self):
             allowed = {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}
@@ -204,15 +216,9 @@ def handler_for(app):
                 filename, move_index = JOSEKI_EXAMPLES[key]
                 self.json_response({'sgf': (PROJECT_DIR / 'examples' / filename).read_text(encoding='utf-8'),
                                     'move_index': move_index})
-            elif path in ('/', '/index.html'):
-                encoded = (PROJECT_DIR / 'web' / 'index.html').read_bytes()
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/html; charset=utf-8')
-                self.send_header('Content-Length', str(len(encoded)))
-                self.send_header('Cache-Control', 'no-store')
-                self.send_header('X-Content-Type-Options', 'nosniff')
-                self.end_headers()
-                self.wfile.write(encoded)
+            elif path in WEB_FILES:
+                filename, content_type = WEB_FILES[path]
+                self.send_bytes((PROJECT_DIR / 'web' / filename).read_bytes(), content_type)
             elif path == '/favicon.ico':
                 self.send_response(204)
                 self.end_headers()

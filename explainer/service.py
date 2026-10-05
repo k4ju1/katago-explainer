@@ -25,12 +25,6 @@ def text(zh, en):
     return {'zh': zh, 'en': en}
 
 
-def snapshot(board):
-    state = board.snapshot()
-    state['to_play'] = board.to_play
-    return state
-
-
 def trusted_pv(info, limit=PV_PLIES):
     """Keep the PV only while the search actually visited it.
 
@@ -49,15 +43,6 @@ def trusted_pv(info, limit=PV_PLIES):
             break
         kept.append(move)
     return kept, len(kept) < len(pv)
-
-
-def _query_all(engine, game, requests):
-    """Batch independent positions when the engine client supports it."""
-    many = getattr(engine, 'query_many', None)
-    if many is not None:
-        return many(game, requests)
-    return [engine.query(game, request['moves'], request['visits'],
-                         request.get('forced_move'), request.get('actor')) for request in requests]
 
 
 def _first_choice(response):
@@ -125,7 +110,7 @@ def explain_move(game, game_id, move_index, choice, settings, output_dir, progre
                     for move in chosen_moves]
         if compare_tenuki:
             requests.append({'moves': history + [[player, 'pass']], 'visits': TENUKI_VISITS, 'ownership': False})
-        responses = _query_all(engine, game, requests)
+        responses = engine.query_many(game, requests)
         forced_candidates, truncated = [], False
         for move, restricted in zip(chosen_moves, responses):
             infos = restricted['moveInfos']
@@ -167,7 +152,7 @@ def explain_move(game, game_id, move_index, choice, settings, output_dir, progre
                     warnings.append(text(f'变化第 {ply} 步未能通过规则校验：{error}', f'PV step {ply} failed rule validation: {error}'))
                     break
                 branch_history.append([turn, move])
-                line.append({'ply': ply, 'player': turn, 'move': move, 'board': snapshot(branch_board),
+                line.append({'ply': ply, 'player': turn, 'move': move, 'board': branch_board.snapshot(),
                              'facts': facts, 'to_play': branch_board.to_play})
                 pending.append({'moves': [list(item) for item in branch_history], 'visits': TRACE_VISITS,
                                 'ownership': False})
@@ -178,11 +163,11 @@ def explain_move(game, game_id, move_index, choice, settings, output_dir, progre
             pending.append({'moves': history + [[player, selected_move], [opponent, 'pass']],
                             'visits': TENUKI_VISITS, 'ownership': False})
         progress(text(f'正在逐手评估变化（{len(pending)} 个局面）…', f'Evaluating the continuations ({len(pending)} positions)…'), 2, PHASES)
-        evaluations = iter(_query_all(engine, game, pending))
+        evaluations = iter(engine.query_many(game, pending))
         branches = []
         for branch_index, (candidate, line) in enumerate(zip(forced_candidates, lines)):
             label = text('讲解这手的变化', 'Continuation for the explained move') if branch_index == 0 else text('另一选择的变化', 'Alternative continuation')
-            steps = [{'ply': 0, 'player': None, 'move': None, 'board': snapshot(before), 'eval': base_eval}]
+            steps = [{'ply': 0, 'player': None, 'move': None, 'board': before.snapshot(), 'eval': base_eval}]
             for step in line:
                 position_analysis = next(evaluations)
                 if position_analysis['rootInfo'].get('currentPlayer') != step.pop('to_play'):
@@ -222,7 +207,7 @@ def explain_move(game, game_id, move_index, choice, settings, output_dir, progre
             'game_id': game_id, 'move_index': move_index, 'player': player,
             'selected_move': selected_move, 'actual_move': actual_move, 'ai_move': ai_move, 'choice': choice,
             'board_size': game.board_size, 'rules': game.rules, 'komi': game.komi,
-            'base_board': snapshot(before), 'base_eval': base_eval,
+            'base_board': before.snapshot(), 'base_eval': base_eval,
             'selected': selected, 'alternative': alternative, 'comparison': comparison,
             'root_ranked': root_ranked, 'tenuki': tenuki,
             'explanation': explanation, 'branches': branches, 'warnings': warnings,

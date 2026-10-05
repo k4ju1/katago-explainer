@@ -213,8 +213,8 @@ def _shape(before, player, move):
         zh = f"{move} 与己方 {name(friend)} 构成尖形，横纵各相距一格；斜邻关系本身不等于直接粘连。"
         en = f"{move} forms a diagonal shape with the friendly stone at {name(friend)}; diagonal adjacency alone is not a solid connection."
         if empty((friend[0], y)) and empty((x, friend[1])):
-            zh += "两个连接点目前都空着，对方占一个，己方还能粘另一个。"
-            en += " Both connecting points are empty, so if the opponent takes one the other can still be connected."
+            zh += "两个连接点目前都空着；能否安全粘连，仍要核对气数和对方的应手。"
+            en += " Both connecting points are empty; a safe connection still requires checking liberties and the opponent's replies."
         return [_bi(zh, en)], ['diagonal']
 
     for opponent in enemy_diag:
@@ -352,11 +352,12 @@ def _verdict(move, player, analysis, replayed):
             return {"level": "best", "label": _bi(*_LABELS["best"]),
                     "text": _bi(f"{move} 是本次根搜索的一选。", f"{move} ranked first in this root search.")}
         return None
-    delta_pp = _r(selected["winrate"] - alternative["winrate"])
-    delta_points = _r(selected["score_lead"] - alternative["score_lead"])
+    raw_pp = selected["winrate"] - alternative["winrate"]
+    raw_points = selected["score_lead"] - alternative["score_lead"]
+    delta_pp, delta_points = _r(raw_pp), _r(raw_points)
     zh_gap = f"胜率 {delta_pp:+.1f} 个百分点、目差 {delta_points:+.1f} 目"
     en_gap = f"{delta_pp:+.1f} percentage points of win probability and {delta_points:+.1f} points of score"
-    equal = abs(delta_pp) < EQUAL_WINRATE_PP and abs(delta_points) < EQUAL_SCORE_POINTS
+    equal = abs(raw_pp) < EQUAL_WINRATE_PP and abs(raw_points) < EQUAL_SCORE_POINTS
     base_rate = (analysis.get("base_eval") or {}).get("winrate")
     zh_opponent, en_opponent = _color(other(player))
 
@@ -372,7 +373,7 @@ def _verdict(move, player, analysis, replayed):
             return result("equal",
                           f"{move} 是本次根搜索的一选，但与{zh_alt}基本等价：补搜的差距只有{zh_gap}，在搜索波动范围内，两手都可下。",
                           f"{move} ranked first in the root search, but it is practically equal to {en_alt}: the re-search differs by only {en_gap}, within search noise. Both moves are playable.")
-        level, _ = _grade(-delta_points, -delta_pp, base_rate)
+        level, _ = _grade(-raw_points, -raw_pp, base_rate)
         if level != "equal":
             return result("unstable",
                           f"{move} 是本次根搜索的一选，但补搜后{zh_alt}的评估反而更高（{move} 相比之下：{zh_gap}）。一选的排序在当前搜索预算下并不稳固，两手都值得考虑。",
@@ -384,7 +385,7 @@ def _verdict(move, player, analysis, replayed):
     is_reference = bool(ai_move) and str(ai_move).lower() == str(alt_move).lower()
     zh_alt = f" AI 一选 {alt_move} " if is_reference else f"另一候选 {alt_move} "
     en_alt = f"the engine's first choice {alt_move}" if is_reference else f"the other candidate {alt_move}"
-    level, lopsided = _grade(-delta_points, -delta_pp, base_rate)
+    level, lopsided = _grade(-raw_points, -raw_pp, base_rate)
     if equal:
         return result("equal",
                       f"{move} 与{zh_alt}基本等价：补搜的差距只有{zh_gap}，在搜索波动范围内，这手可下。",
@@ -489,9 +490,10 @@ def _tenuki_reasons(before, player, move, analysis):
         gain_pp = _r(ignored_eval["winrate"] - selected["winrate"])
         if local:
             reasons.append({"id": "followup-if-ignored", "level": "search", "ply": 1, "text": _bi(
-                f"后续手段：{move} 之后如果{zh_opponent}脱先不应，搜索给{zh_color}的下一手是同一局部的 {followup}，评估再变化 {gain_points:+.1f} 目、{gain_pp:+.1f} 个百分点。全盘最大的一手就在这里，说明这手留有后续，{zh_opponent}多半需要应一手（接近先手）；是否真是先手，仍要看{zh_opponent}实际怎么应。",
-                f"Follow-up: if {en_opponent} ignores {move}, the search's next move for {en_color} is {followup} in the same area, changing the evaluation by {gain_points:+.1f} points and {gain_pp:+.1f} percentage points. The biggest move on the board is right here, so the move leaves a follow-up and {en_opponent} will probably need to answer (close to sente); whether it really is sente depends on the actual reply.")})
-            ids.append("sente")
+                f"后续手段：{move} 之后如果{zh_opponent}脱先不应，搜索给{zh_color}的下一手是同一局部的 {followup}，评估再变化 {gain_points:+.1f} 目、{gain_pp:+.1f} 个百分点。这条搜索显示一个局部后续候选；仅凭落点在附近，不能判断对方必须应一手或认定先手。",
+                f"Follow-up: if {en_opponent} ignores {move}, the search's next move for {en_color} is {followup} in the same area, changing the evaluation by {gain_points:+.1f} points and {gain_pp:+.1f} percentage points. This search identifies a local follow-up candidate; proximity alone does not establish that the opponent must answer or that the move is sente.")})
+            if gain_points > EQUAL_SCORE_POINTS:
+                ids.append("sente")
         elif region:
             reasons.append({"id": "followup-if-ignored", "level": "search", "ply": 1, "text": _bi(
                 f"后续手段：{move} 之后即使{zh_opponent}脱先，搜索给{zh_color}的下一手也是别处的 {followup}（{region[0]}）。没有显示这手在局部留下必须马上兑现的后续，{zh_opponent}可以考虑脱先（这手偏后手）。",
@@ -633,7 +635,7 @@ def generate_explanation(before: Board, player: str, move: str, analysis: dict, 
     if alternative and _number(delta_rate) and _number(delta_lead):
         alt_move = alternative.get("move", "?")
         shown_rate, shown_lead = _r(delta_rate), _r(delta_lead)
-        if abs(shown_rate) < EQUAL_WINRATE_PP and abs(shown_lead) < EQUAL_SCORE_POINTS:
+        if abs(delta_rate) < EQUAL_WINRATE_PP and abs(delta_lead) < EQUAL_SCORE_POINTS:
             zh_tail = "两项差距都在搜索波动范围内，可视为基本等价。"
             en_tail = "Both gaps are inside search noise, so the two moves are practically equal."
         else:
