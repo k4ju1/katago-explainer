@@ -87,17 +87,21 @@ SHADOW_BORDER = 40  # px; plugins/katrain/skin.py stretches the texture with thi
 
 
 def soft_shadow(size=128, border=SHADOW_BORDER):
-    """A blurred rounded square used as a nine-patch for every drop shadow.
+    """A soft rounded square used as a nine-patch for every drop shadow.
 
-    Alpha is zero at the outer edge and full `border` px inside it, so drawing
-    the patch that much larger than a surface puts the whole falloff outside it.
+    The opaque core is exactly the surface; all of the falloff lies in the
+    `border` px around it and drops quickly, so most of the darkness sits
+    right under the surface and only a faint haze reaches the outer edge.
+    A hard-edged or evenly graded band reads as a dark box, not a shadow.
     Stretching a small texture costs almost nothing per frame, unlike a blur shader.
     """
-    from PIL import ImageDraw
-    image = Image.new('L', (size, size), 0)
-    inset = border // 2
-    ImageDraw.Draw(image).rounded_rectangle((inset, inset, size - 1 - inset, size - 1 - inset), radius=10, fill=255)
-    alpha = np.array(image.filter(ImageFilter.GaussianBlur(border / 5.2))) / 255.
+    y, x = np.mgrid[0:size, 0:size].astype(np.float64) + .5
+    radius = 12.
+    low, high = border + radius, size - border - radius
+    dx = np.maximum(np.maximum(low - x, x - high), 0)
+    dy = np.maximum(np.maximum(low - y, y - high), 0)
+    distance = np.clip(np.sqrt(dx * dx + dy * dy) - radius, 0, None) / border  # 0 at the surface, 1 at the edge
+    alpha = np.clip(1 - distance, 0, 1) ** 2.6
     return np.concatenate([np.zeros((size, size, 3)), alpha[..., None]], -1)
 
 

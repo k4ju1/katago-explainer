@@ -252,6 +252,50 @@ class KeyButton(ButtonBehavior, Label):
         skin.place_shadow(self._shadow, self.x, self.y, self.width, self.height, ds(10) * depth, ds(3) * depth)
 
 
+class AskBar(ButtonBehavior, Widget):
+    """The chat entry in the dock: looks like a text box, opens the conversation."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._tag = Label(font_name=Theme.DEFAULT_FONT, color=INK, bold=True)
+        self._hint = Label(font_name=Theme.DEFAULT_FONT, color=MUTED, halign="left", valign="middle", shorten=True)
+        with self.canvas.before:
+            Color(*skin.SUNKEN)
+            self._well = RoundedRectangle()
+            Color(1, 1, 1, 1)
+            self._shade = RoundedRectangle(texture=skin.inset())
+            self._ring_color = Color(*skin.EDGE)
+            self._ring = Line(width=1)
+            Color(*skin.ACCENT)
+            self._tag_face = RoundedRectangle()
+        self.add_widget(self._tag)
+        self.add_widget(self._hint)
+        self.bind(pos=self._sync, size=self._sync, state=self._sync)
+        self._tag.bind(texture_size=self._sync)
+
+    def set_text(self, tag, hint):
+        self._tag.text, self._hint.text = tag, hint
+
+    def _sync(self, *_args):
+        height = max(1, self.height - dp(4))
+        x, y, radius = self.x, self.y, min(height / 2.6, dp(11))
+        for shape in (self._well, self._shade):
+            shape.pos, shape.size, shape.radius = (x, y), (self.width, height), [radius]
+        self._ring_color.rgba = skin.ACCENT if self.state == "down" else skin.EDGE
+        self._ring.rounded_rectangle = (x, y, self.width, height, radius)
+        font = max(sp(11), height * 0.42)
+        self._tag.font_size = self._hint.font_size = font
+        self._tag.texture_update()
+        inset = max(dp(3), height * 0.14)
+        tag_width = self._tag.texture_size[0] + height * 0.7
+        self._tag_face.pos, self._tag_face.size = (x + inset, y + inset), (tag_width, height - 2 * inset)
+        self._tag_face.radius = [max(1, radius - inset / 2)]
+        self._tag.pos, self._tag.size = self._tag_face.pos, self._tag_face.size
+        self._hint.pos = (x + inset + tag_width + height * 0.3, y)
+        self._hint.size = (max(1, self.width - tag_width - height * 0.6 - inset), height)
+        self._hint.text_size = self._hint.size
+
+
 class Card(RoundedBox):
     """A vertical card that is exactly as tall as its content."""
 
@@ -491,7 +535,7 @@ class KaTrainExplainerPanel(BoxLayout):
             Color(*skin.EDGE)
             self._dock_edge = Line(width=1)
         self.bind(pos=self._sync_dock, size=self._sync_dock)
-        heading = BoxLayout(size_hint_y=0.30, spacing=dp(6))
+        heading = BoxLayout(size_hint_y=0.20, spacing=dp(6))
         self._dock_label = self._label("着法讲解 / Move explanation", sp(12), color=MUTED)
         self._dock_label.halign = "left"
         self._dock_label.bind(size=lambda widget, size: setattr(widget, "text_size", size))
@@ -501,7 +545,7 @@ class KaTrainExplainerPanel(BoxLayout):
         heading.add_widget(self._dock_label)
         heading.add_widget(self._dock_status)
         self.add_widget(heading)
-        actions = BoxLayout(size_hint_y=0.70, spacing=dp(8))
+        actions = BoxLayout(size_hint_y=0.42, spacing=dp(8))
         initial_labels = dock_button_labels(getattr(App.get_running_app(), "language", "en"))
         self._actual_button = self._button(initial_labels[0], lambda *_: self.start_analysis("actual"),
                                            font_size=sp(12), background_color=list(skin.ACTION))
@@ -518,6 +562,10 @@ class KaTrainExplainerPanel(BoxLayout):
         actions.add_widget(self._ai_button)
         actions.add_widget(self._reopen_button)
         self.add_widget(actions)
+        self._chat = None
+        self._ask_bar = AskBar(size_hint_y=0.38)
+        self._ask_bar.bind(on_release=lambda *_: self.open_chat())
+        self.add_widget(self._ask_bar)
         # app.gui is assigned after the enclosing KaTrainGui is constructed.
         Clock.schedule_once(self._resolve_gui, 0)
 
@@ -584,6 +632,7 @@ class KaTrainExplainerPanel(BoxLayout):
         if not self._language_chosen:  # follow KaTrain until the viewer's own switch is used
             self._language = viewer_language(language)
         self._dock_label.text = self._t("着法讲解", "Move explanation")
+        self._ask_bar.set_text(self._t("问 AI", "Ask AI"), self._t("就这盘棋提问…", "Ask about this game…"))
 
     def _t(self, zh, en):
         return zh if self._language == "zh" else en
@@ -598,6 +647,22 @@ class KaTrainExplainerPanel(BoxLayout):
 
     def _player_name(self, player):
         return self._t("黑", "Black") if player == "B" else self._t("白", "White")
+
+    # ---------------------------------------------------------------------- chat
+
+    def open_chat(self, question=None):
+        """Open the language-model sheet; it is created on first use."""
+        if self._resolve_gui() is None:
+            return
+        try:
+            if self._chat is None:
+                from .chat import ChatSheet
+                self._chat = ChatSheet(self)
+            self._chat.open(question)
+        except Exception as error:  # the chat must never take the explanation features down with it
+            Logger.exception("KataGoExplainer: chat could not open")
+            self._dock_status.color = VERDICT_COLORS["mistake"]
+            self._dock_status.text = self._t("问 AI 打开失败", "Ask AI failed to open") + f": {error}"[:60]
 
     # ------------------------------------------------------------------ analysis
 
@@ -683,6 +748,9 @@ class KaTrainExplainerPanel(BoxLayout):
         self._title_label.shorten, self._title_label.shorten_from = True, "right"
         self._title_label.bind(size=lambda widget, size: setattr(widget, "text_size", size))
         header.add_widget(self._title_label)
+        self._ask_button = self._button("", lambda *_: self.open_chat(), size_hint_x=None, width=ds(84), font_size=fs(12),
+                                        background_color=list(skin.ACCENT_DEEP))
+        header.add_widget(self._ask_button)
         self._language_button = self._button("", self._toggle_language, size_hint_x=None, width=ds(92), font_size=fs(12))
         header.add_widget(self._language_button)
         self._close_button = self._button("", lambda *_: self._popup.dismiss(), size_hint_x=None, width=ds(76), font_size=fs(12))
@@ -857,6 +925,7 @@ class KaTrainExplainerPanel(BoxLayout):
         self._popup.title = self._t("KataGo · 着法讲解（← → 逐手，空格播放）", "KataGo · Move explanation (← → to step, Space to play)")
         self._language_button.text = "English" if self._language == "zh" else "中文"
         self._close_button.text = self._t("关闭", "Close")
+        self._ask_button.text = self._t("问 AI", "Ask AI")
         self._play_button.text = self._t("暂停", "Pause") if self._play_event else self._t("播放", "Play")
         for key, zh, en in TABS:
             button = self._tab_buttons[key]

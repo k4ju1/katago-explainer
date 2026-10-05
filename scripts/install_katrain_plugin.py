@@ -22,7 +22,7 @@ import katrain_gui_patch as gui_patch  # noqa: E402
 ORIGINAL_GUI_SHA256 = '0c015263cd52305c9d64812c1d013173e69a4e4a131f40847d9bbe455936e9df'
 MARKER = gui_patch.MARKER
 # The panel, the bridge to KaTrain's engine, and the look of the whole window.
-PLUGIN_FILES = ('__init__.py', 'bridge.py', 'panel.py', 'skin.py',
+PLUGIN_FILES = ('__init__.py', 'bridge.py', 'panel.py', 'skin.py', 'chat.py', 'chat_context.py', 'llm.py',
                 'kx_board.png', 'kx_stone_b.png', 'kx_stone_w.png', 'kx_shadow.png')
 # The explanation pipeline, copied beside the plugin so KaTrain needs nothing else.
 CORE_FILES = ('board.py', 'engine.py', 'explanation.py', 'joseki.py', 'service.py', 'sgf.py', 'terms.py')

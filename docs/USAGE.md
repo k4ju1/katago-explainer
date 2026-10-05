@@ -49,6 +49,34 @@ If the board opens but the engine fails, update the graphics driver and check th
 engine status in KaTrain settings. Uninstall through Windows' installed-apps list;
 preferences and games not created by the installer are preserved.
 
+## Ask AI / 问 AI
+
+右侧讲解面板里的“问 AI”可以就当前这盘棋向大模型提问；讲解窗口右上角也有同一入口。
+第一次使用先在“设置”里选择服务商并填入你自己的 API Key：
+
+- OpenAI 兼容接口：DeepSeek、通义千问、Kimi、智谱 GLM、OpenAI，或任何自定义地址；
+- Claude（Anthropic）接口；
+- 本机 Ollama（不需要 Key）。
+
+每次提问会附带棋谱、当前局面、KataGo 对该局面的评估与候选手，以及本软件已生成的
+这一手讲解，所以回答针对的是这盘棋。模型被要求只引用这些数字；它自己的推演仍可能出错，
+请以 KataGo 的搜索和棋盘事实为准。
+
+**隐私**：Key 只保存在本机，与软件设置放在同一目录（`explainer_chat.json`）。
+提问时，上述对局资料会发送给你选择的服务商；不提问就不会有任何数据外发。
+
+“Ask AI” in the explanation dock (and in the explanation window) sends your
+question to a language model together with the moves, the current position,
+KataGo's evaluation and candidates, and the explanation already generated for
+the move. Choose a service and enter your own API key under Settings first:
+any OpenAI-compatible endpoint, the Claude API, or a local Ollama without a
+key. The model is told to quote only those numbers, but its own reading can
+still be wrong; trust the search and the board facts over it.
+
+**Privacy**: the key is stored only on this computer, beside the app's
+settings (`explainer_chat.json`). Game data is sent to the chosen service
+only when you ask a question.
+
 ## Portable option / 便携版选项
 
 不希望安装时，可从[发布页](https://github.com/k4ju1/katago-explainer/releases/tag/v0.2.0-beta.2)

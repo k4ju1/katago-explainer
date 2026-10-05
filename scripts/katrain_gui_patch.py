@@ -354,6 +354,18 @@ REPLACEMENTS = [
             rounded_rectangle: (self.x, self.y, self.width, self.height, self.height / 2.6)
             width: 1.2 if root.is_on else 1
 '''),
+    # KaTrain breaks these labels over two lines; one line reads faster and the bar has the room.
+    ('''    ClickableLabel:
+        id: label
+        text: root.text
+        halign: 'center'
+        font_size: root.height / 3
+''', '''    ClickableLabel:
+        id: label
+        text: kx.one_line(root.text)
+        halign: 'center'
+        font_size: root.height / 2.5
+'''),
     ('''                text: i18n._('analysis:territory')
                 padding: 0,0,show_children.width/8,0 # space button a bit more
 ''', '''                text: i18n._('analysis:territory')
@@ -429,7 +441,7 @@ REPLACEMENTS = [
                             id: explainer_panel
                             katrain: root
                             size_hint_y: None
-                            height: max(dp(78), 0.088 * root.height)
+                            height: max(dp(112), 0.128 * root.height)
                         ControlsPanel:
                             id: controls
         NavigationDrawer:

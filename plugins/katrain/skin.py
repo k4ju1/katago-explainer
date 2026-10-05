@@ -41,6 +41,7 @@ SUNKEN = [0.075, 0.090, 0.116, 1]         # wells: clock, graph, text areas
 BUTTON = [0.300, 0.346, 0.415, 1]         # raised keys
 ACCENT = [0.980, 0.760, 0.290, 1]         # amber: the current mode and player
 ACTION = [0.250, 0.640, 0.450, 1]         # green: the explanation buttons
+ACCENT_DEEP = [0.720, 0.520, 0.160, 1]    # amber key: the chat entry
 EDGE = [1, 1, 1, 0.07]                    # hairline on raised surfaces
 TEXT_DIM = [0.70, 0.75, 0.81, 1]
 
@@ -151,6 +152,16 @@ def darker(color, amount=0.08):
     return [max(0.0, channel - amount) for channel in color[:3]] + [color[3] if len(color) > 3 else 1]
 
 
+def one_line(text):
+    """Join a label KaTrain wraps by hand: no gap between CJK characters, a space otherwise."""
+    parts = [part.strip() for part in str(text).split("\n") if part.strip()]
+    result = parts[0] if parts else ""
+    for part in parts[1:]:
+        cjk = "\u2e80" <= result[-1] <= "\u9fff" or "\u2e80" <= part[0] <= "\u9fff"
+        result += ("" if cjk else " ") + part
+    return result
+
+
 def _replace(owner, name, function):
     """Install `function` as `owner.name`.
 
@@ -212,7 +223,7 @@ def _patch_board(badukpan):
         wood = cached_texture(Theme.BOARD_TEXTURE)
         tint = Theme.INSERT_BOARD_COLOR_TINT if katrain.game.insert_mode else Theme.BOARD_COLOR_TINT
         # cast shadow on the table, offset down as if lit from above
-        drop_shadow(left, bottom - depth, width, height + depth, spread=grid * 1.0, offset=grid * 0.34, alpha=0.85)
+        drop_shadow(left, bottom - depth, width, height + depth, spread=grid * 1.5, offset=grid * 0.42, alpha=0.62)
         # side face: the same wood, in shade
         Color(0.50 * tint[0], 0.42 * tint[1], 0.34 * tint[2], tint[3])
         RoundedRectangle(pos=(left, bottom - depth), size=(width, height * 0.5 + depth),

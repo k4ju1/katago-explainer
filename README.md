@@ -28,6 +28,7 @@ embedded in KaTrain, with an interactive web demo sharing the same core.
 | 逐手讲解 / Replay | 切换两条搜索变化，逐手播放棋盘与固定视角的评估。 / Replay both continuations with fixed-player evaluations. |
 | 棋理有依据 / Evidence | 规则核验提子、打吃、连接和气数；区分搜索判断与推测。 / Rule-checked facts are separated from search assessments and tentative interpretations. |
 | 定式与棋语 / Joseki & terms | 七项精选参考，包含尖顶、秀策尖、托退、芈氏飞刀外扳入口；附中文棋语、手顺与出处。 / Seven sourced references with Chinese terminology and sequences. |
+| 问 AI / Ask AI | 就当前局面向大模型提问，自动附带棋谱、KataGo 评估与本手讲解；支持 OpenAI 兼容接口、Claude 与本机 Ollama。 / Ask a language model about the position with the moves, KataGo numbers and the explanation attached; OpenAI-compatible, Claude and local Ollama. |
 | 原生集成 / Native | 复用 KaTrain 的引擎，保留棋谱树，安装可恢复。 / Share the host engine, preserve the game tree and support restoration. |
 
 支持中英讲解；原生入口按钮跟随 KaTrain 界面语言。网页支持 SGF 上传、自选候选与经典样例。
