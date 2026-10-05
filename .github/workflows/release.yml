@@ -1,0 +1,82 @@
+name: Windows portable release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (artifact only), e.g. 0.2.0-beta.1'
+        required: true
+        default: '0.2.0-beta.1'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source before packaging
+        run: |
+          node --check web/app.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m compileall -q explainer plugins scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Download and verify the pinned official host
+        run: |
+          New-Item -ItemType Directory -Path runs -Force | Out-Null
+          Invoke-WebRequest 'https://github.com/sanderland/katrain/releases/download/v1.20.0/KaTrain.zip' -OutFile runs/KaTrain.zip
+          $expected = '2f74b00790e3c5ef424c19db92f5a94cb95dd109322b7ad052394c9e80d2fb22'
+          $actual = (Get-FileHash runs/KaTrain.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw 'Official KaTrain archive checksum mismatch' }
+          Expand-Archive -LiteralPath runs/KaTrain.zip -DestinationPath runs/upstream
+      - name: Build the portable software
+        env:
+          BUILD_VERSION: ${{ inputs.version || github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          $version = $env:BUILD_VERSION -replace '^v', ''
+          python scripts/build_portable.py --katrain-dir runs/upstream/KaTrain --source-archive runs/KaTrain.zip --source-sha256 2f74b00790e3c5ef424c19db92f5a94cb95dd109322b7ad052394c9e80d2fb22 --version $version --output-dir dist --commit $env:SOURCE_COMMIT --source-url https://github.com/sanderland/katrain/releases/download/v1.20.0/KaTrain.zip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KataGo-Explainer-win64
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          compression-level: 0
+          if-no-files-found: error
+      - name: Publish downloadable assets on a version tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $assets = @(Get-ChildItem dist -File | Where-Object { $_.Name -match '\.zip$|\.sha256$' } | ForEach-Object { $_.FullName })
+          if ($assets.Count -ne 2) { throw 'Expected a ZIP and its SHA256 sidecar' }
+          gh release view $env:RELEASE_TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG @assets --clobber
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            $options = @('--verify-tag', '--title', "KataGo Explainer $env:RELEASE_TAG", '--notes-file', 'docs/RELEASE_NOTES.md', '--draft')
+            if ($env:RELEASE_TAG -match '-') { $options += '--prerelease' }
+            gh release create $env:RELEASE_TAG @assets @options
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          gh release edit $env:RELEASE_TAG --draft=false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

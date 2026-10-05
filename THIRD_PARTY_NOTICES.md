@@ -1,11 +1,17 @@
 # Third-party notices / 第三方说明
 
 KataGo and KaTrain are separate upstream projects. Their executables, models,
-fonts and icons are not distributed in this repository. The generated wooden
+fonts and icons are not committed to this source repository. The Windows
+portable release includes a verified copy of KaTrain's official folder build,
+with the project's plugin installed. Complete upstream notices accompany that
+release in `licenses/`; their sources are recorded in
+[distribution notices](docs/distribution-licenses/README.md). The generated wooden
 board and stone assets in `plugins/katrain/` are reproduced by
 `scripts/build_skin_assets.py`.
 
-KataGo 与 KaTrain 是独立的上游项目。本仓库不分发其程序、模型、字体和图标。
+KataGo 与 KaTrain 是独立的上游项目，程序、模型、字体和图标不提交到源码仓库。
+Windows 便携发布包包含经校验的官方宿主文件夹版和本项目插件，完整第三方声明
+随包保存在 `licenses/`，来源见上述说明。
 插件的木棋盘与棋子图片可通过 `scripts/build_skin_assets.py` 重新生成。
 
 `tests/fixtures/katrain-1.20.0-gui.kv` is KaTrain v1.20.0's original layout,

@@ -4,6 +4,27 @@
 
 KaTrain is the primary interface; the web demo shares the explanation core.
 
+## Portable Windows beta / Windows 便携测试版
+
+1. 从[发布页](https://github.com/k4ju1/katago-explainer/releases/tag/v0.2.0-beta.1)的
+   **Assets** 下载产品 ZIP，完整解压；`Source code` 是开发源码。
+   / Download the product ZIP from **Assets** and extract it completely.
+2. 双击 `START_KATAGO_EXPLAINER.cmd`，无需安装 Python 或另行下载模型。
+   / Double-click the launcher; Python and model setup are already included.
+3. 打开 `examples/shusaku-demo.sgf`，走到第 3 手，点击“解释刚才一手”。
+   / Open the Shusaku sample, go to move three and explain the last move.
+4. 在 KaTrain 设置中选择应用语言；讲解弹窗还可以独立切换中英。
+   / Select the application language in settings; the viewer also has its own language switch.
+
+支持 Windows 10/11 64 位，需要支持 OpenCL 的显卡驱动；首次引擎调优可能较慢。
+启动器读取包内 `portable-config.json`，不会加载旧 KaTrain 的用户配置。
+请通过启动器运行；宿主及驱动仍可能在用户目录写入缓存和日志。
+发布验证与硬件范围见[分发说明](DISTRIBUTION.md)。
+
+The beta targets Windows x64 and an OpenCL-capable driver. The launcher uses its
+own configuration; caches/logs may still use the Windows profile. Use the launcher
+to preserve those settings. See the distribution guide for validation scope.
+
 ## KaTrain
 
 1. 准备 KaTrain v1.20.0 Windows 文件夹版与 Python 3.11+，安装前关闭 KaTrain。

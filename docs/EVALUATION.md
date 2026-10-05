@@ -18,11 +18,21 @@ GPU-free tests cover rules/SGF, metric perspective, restrictions, PV trust,
 bilingual evidence, references, engine lifetime, native ancestry/cancellation,
 installation transactions and web resources.
 
-CI 配置覆盖 Windows/Linux 与 Python 3.11/3.12。配置存在不等于远端已经运行；
-本机与远端结果分别查看。
+CI 覆盖 Windows/Linux 与 Python 3.11/3.12。
+提交 `71193f2` 的[远端检查](https://github.com/k4ju1/katago-explainer/actions/runs/37251223040)
+四项均通过，共 158 项测试。初次 Windows 检查曾因临时目录的短路径与完整路径比较不一致，
+使模拟故障未触发；已用真实 Windows 短路径复现并修正测试目录解析。
 
-The CI configuration covers those operating systems and Python versions.
-Its presence does not establish a completed remote run.
+All four remote jobs passed for that commit. The initial Windows failure was
+in fault-injection tests: short temporary paths and canonical paths referred
+to the same files but failed the comparison. It was reproduced and corrected.
+The portable-release branch adds packaging checks; see [distribution](DISTRIBUTION.md).
+
+便携测试版新增 10 项打包测试；整套 168 项本机回归通过。覆盖干净来源校验、
+无私人文件、配置隔离、来源清单、失败清理和相同输入的字节一致性。
+
+The portable beta adds ten packaging tests; all 168 tests passed locally,
+including source integrity, isolated configuration, provenance, cleanup and reproducibility.
 
 ## Real engine / 真实引擎
 

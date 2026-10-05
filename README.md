@@ -11,6 +11,8 @@ embedded in KaTrain, with an interactive web demo sharing the same core.
 [使用 / User guide](docs/USAGE.md) · [架构 / Architecture](docs/ARCHITECTURE.md) ·
 [验证 / Validation](docs/EVALUATION.md) · [简历与演示 / Portfolio](docs/PORTFOLIO.md)
 
+**[下载 Windows 便携测试版 / Download the Windows portable beta](https://github.com/k4ju1/katago-explainer/releases/tag/v0.2.0-beta.1)**
+
 ![Interactive web demo / 交互演示](docs/assets/preview.png)
 
 *辅助网页演示；主入口为原生 KaTrain 插件。 / The web demo is shown here; the primary interface is the native KaTrain plugin.*
@@ -31,6 +33,16 @@ Chinese/English explanations share the same evidence. Native buttons follow
 KaTrain's language; the web demo supports SGF import, custom candidates and samples.
 
 ## Start / 开始使用
+
+下载上述发布页 **Assets** 中的 `KataGo-Explainer-v0.2.0-beta.1-win64.zip`，完整解压，
+双击 `START_KATAGO_EXPLAINER.cmd`。已包含 KaTrain、KataGo、模型和插件，无需安装 Python。
+需要 Windows 10/11 64 位和支持 OpenCL 的显卡驱动；首次启动可能需要调优。
+
+Download the ZIP from the release's **Assets**, extract it completely and double-click
+the launcher. The Windows x64 beta includes the host, engine, model and plugin;
+no separate Python installation is required. An OpenCL-capable driver is needed.
+
+以下为源码开发与手动安装方式。 / For source development or manual installation:
 
 需要 Python 3.11+ 进行安装；原生运行使用 KaTrain 自带环境。固定支持
 **KaTrain v1.20.0 Windows 文件夹版**，程序与模型自行准备。
@@ -82,6 +94,12 @@ python scripts/validate_demo.py examples/mi-flying-dagger-demo.sgf --move 17 --r
 
 Tests require no GPU. Real validation retains logs and results. The CI
 configuration covers Windows/Linux and Python 3.11/3.12.
+
+便携版由[发布工作流](.github/workflows/release.yml)从固定 SHA256 的官方包构建，
+附来源记录和文件校验；[打包说明](docs/DISTRIBUTION.md)说明复现方法。
+
+Portable builds verify the pinned official archive, retain provenance and checksums,
+and can be reproduced using the distribution guide.
 
 讲解由规则和证据模板生成，未接入语言模型。定式目录覆盖有限，搜索变化是参考路线，
 有限预算的评估差异不能作为严格因果证明。原生接入依赖固定版本的界面资源。
