@@ -39,7 +39,9 @@ class KaTrainInstallerTests(unittest.TestCase):
         dock_only = patch.object(installer.gui_patch, 'REPLACEMENTS', DOCK_ONLY)
         dock_only.start()
         self.addCleanup(dock_only.stop)
-        self.base = Path(self.directory.name)
+        # The installer resolves paths. Windows runners can return an 8.3 temp
+        # alias (RUNNER~1), so mocks must use the same canonical path.
+        self.base = Path(self.directory.name).resolve()
         self.katrain = self.base / 'FakeKaTrain'
         self.gui = self.katrain / '_internal' / 'katrain' / 'gui.kv'
         self.gui.parent.mkdir(parents=True)
