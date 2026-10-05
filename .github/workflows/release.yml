@@ -1,4 +1,4 @@
-name: Windows portable release
+name: Windows software release
 
 on:
   push:
@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build (artifact only), e.g. 0.2.0-beta.1'
+        description: 'Version to build (artifact only), e.g. 0.2.0-beta.2'
         required: true
-        default: '0.2.0-beta.1'
+        default: '0.2.0-beta.2'
         type: string
 
 permissions:
@@ -32,6 +32,8 @@ jobs:
         run: |
           node --check web/app.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check download/app.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m compileall -q explainer plugins scripts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -v
@@ -52,12 +54,30 @@ jobs:
           $version = $env:BUILD_VERSION -replace '^v', ''
           python scripts/build_portable.py --katrain-dir runs/upstream/KaTrain --source-archive runs/KaTrain.zip --source-sha256 2f74b00790e3c5ef424c19db92f5a94cb95dd109322b7ad052394c9e80d2fb22 --version $version --output-dir dist --commit $env:SOURCE_COMMIT --source-url https://github.com/sanderland/katrain/releases/download/v1.20.0/KaTrain.zip
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Prepare the pinned installer compiler
+        run: |
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe' -OutFile runs/innosetup.exe
+          $expected = 'f3c42116542c4cc57263c5ba6c4feabfc49fe771f2f98a79d2f7628b8762723b'
+          $actual = (Get-FileHash runs/innosetup.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw 'Installer compiler checksum mismatch' }
+          $compilerDirectory = Join-Path $env:GITHUB_WORKSPACE 'runs/inno'
+          $compilerSetup = Start-Process -FilePath (Resolve-Path runs/innosetup.exe) -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/CURRENTUSER','/PORTABLE=1',"/DIR=`"$compilerDirectory`"") -WindowStyle Hidden -Wait -PassThru
+          if ($compilerSetup.ExitCode -ne 0) { throw 'Installer compiler preparation failed' }
+      - name: Build the graphical installer
+        env:
+          BUILD_VERSION: ${{ inputs.version || github.ref_name }}
+        run: |
+          $version = $env:BUILD_VERSION -replace '^v', ''
+          python scripts/build_installer.py --portable-zip "dist/KataGo-Explainer-v$version-win64.zip" --version $version --output-dir dist --iscc runs/inno/ISCC.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
-          name: KataGo-Explainer-win64
+          name: KataGo-Explainer-Windows
           path: |
             dist/*.zip
             dist/*.sha256
+            dist/*.exe
+            dist/*.build.json
           compression-level: 0
           if-no-files-found: error
       - name: Publish downloadable assets on a version tag
@@ -66,8 +86,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          $assets = @(Get-ChildItem dist -File | Where-Object { $_.Name -match '\.zip$|\.sha256$' } | ForEach-Object { $_.FullName })
-          if ($assets.Count -ne 2) { throw 'Expected a ZIP and its SHA256 sidecar' }
+          $assets = @(Get-ChildItem dist -File | Where-Object { $_.Name -match '\.zip$|\.exe$|\.sha256$|\.build\.json$' } | ForEach-Object { $_.FullName })
+          if ($assets.Count -ne 5) { throw 'Expected installer, portable ZIP, checksums and build metadata' }
           gh release view $env:RELEASE_TAG *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $env:RELEASE_TAG @assets --clobber

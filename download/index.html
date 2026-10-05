@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="下载 KataGo Explainer。安装后直接使用，查看围棋着法讲解、后续变化和胜率。">
+  <meta name="theme-color" content="#173e32">
+  <title>KataGo Explainer · 下载与开始使用</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main" data-i18n="skip">跳到正文</a>
+  <header class="header wrap">
+    <a class="brand" href="./" aria-label="KataGo Explainer home">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="#173e32"/><path d="M8 8h14M8 15h14M8 22h14M8 8v14M15 8v14M22 8v14" stroke="#a8c2b1" stroke-width=".7"/><circle cx="15" cy="15" r="4.4" fill="#f6f3ea"/><circle cx="22" cy="8" r="2.8" fill="#b89150"/></svg>
+      <span>KataGo <strong>Explainer</strong></span>
+    </a>
+    <nav aria-label="Navigation">
+      <a href="#start" data-i18n="navStart">开始使用</a>
+      <button id="language" type="button" aria-label="Switch to English">English</button>
+    </nav>
+  </header>
+  <main id="main" class="wrap">
+    <section class="hero" aria-labelledby="heroTitle">
+      <div class="intro">
+        <p class="eyebrow"><span class="status-dot"></span><span data-i18n="eyebrow">围棋学习 · Windows 软件</span></p>
+        <h1 id="heroTitle"><span data-i18n="title1">看懂下一手，</span><br><em data-i18n="title2">从这里开始。</em></h1>
+        <p class="lead" data-i18n="lead">为什么这样下？对手会怎样应？把棋盘上的疑问，变成能逐手看懂的讲解与变化。</p>
+        <a class="download" id="downloadButton" href="https://github.com/k4ju1/katago-explainer/releases/download/v0.2.0-beta.2/KataGo-Explainer-Setup-v0.2.0-beta.2-win64.exe">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-i18n="download">下载 Windows 安装版</span><span aria-hidden="true">↗</span>
+        </a>
+        <p class="download-meta" data-i18n="downloadMeta">免费测试版 v0.2.0-beta.2 · Windows 10 / 11 64 位</p>
+        <p class="reassurance" data-i18n="reassurance">无需账号 · 安装向导 · 自动创建桌面图标</p>
+      </div>
+      <div class="board-scene" aria-hidden="true">
+        <div class="scene-label"><span data-i18n="sceneLabel">一手棋，两条变化。</span><span>01 — 06</span></div>
+        <svg class="go-board" viewBox="0 0 380 380">
+          <defs>
+            <linearGradient id="wood" x2="1" y2="1"><stop stop-color="#ebc88f"/><stop offset="1" stop-color="#d7aa6a"/></linearGradient>
+            <radialGradient id="blackStone" cx=".32" cy=".25"><stop stop-color="#595c59"/><stop offset=".6" stop-color="#232623"/><stop offset="1" stop-color="#101410"/></radialGradient>
+            <radialGradient id="whiteStone" cx=".35" cy=".25"><stop stop-color="white"/><stop offset=".7" stop-color="#f0efe7"/><stop offset="1" stop-color="#cfcec4"/></radialGradient>
+            <pattern id="grid" width="37" height="37" patternUnits="userSpaceOnUse" x="42" y="42"><path d="M37 0H0V37" fill="none" stroke="#856139" stroke-width="1"/></pattern>
+            <filter id="shadow" x="-40%" y="-30%" width="190%" height="190%"><feDropShadow dx="1" dy="3" stdDeviation="2" flood-opacity=".27"/></filter>
+          </defs>
+          <rect x="2" y="2" width="376" height="376" rx="18" fill="url(#wood)"/>
+          <rect x="42" y="42" width="296" height="296" fill="url(#grid)"/>
+          <path d="M338 42v296H42" fill="none" stroke="#856139"/>
+          <g fill="#79572f"><circle cx="116" cy="116" r="2.7"/><circle cx="264" cy="116" r="2.7"/><circle cx="190" cy="190" r="2.7"/><circle cx="116" cy="264" r="2.7"/><circle cx="264" cy="264" r="2.7"/></g>
+          <g filter="url(#shadow)">
+            <g fill="url(#blackStone)"><circle cx="116" cy="116" r="17"/><circle cx="153" cy="153" r="17"/><circle cx="116" cy="190" r="17"/><circle cx="227" cy="153" r="17"/><circle cx="190" cy="116" r="17"/></g>
+            <g fill="url(#whiteStone)"><circle cx="153" cy="116" r="17"/><circle cx="190" cy="153" r="17"/><circle cx="153" cy="190" r="17"/><circle cx="227" cy="190" r="17"/></g>
+          </g>
+          <circle cx="227" cy="153" r="10" fill="none" stroke="#d4b674" stroke-width="1.6"/>
+          <g font-family="sans-serif" font-size="13" text-anchor="middle" dominant-baseline="central"><text x="227" y="153" fill="#f6e6be">1</text><text x="227" y="190" fill="#46554a">2</text></g>
+        </svg>
+        <div class="scene-note"><span class="small-stone"></span><span data-i18n="sceneNote">跟着变化，理解每一步的取舍。</span></div>
+      </div>
+    </section>
+    <section class="features" aria-label="Features">
+      <article><span class="feature-mark">01 / WHY</span><h2 data-i18n="feature1">讲清这一步</h2><p data-i18n="feature1Body">比较实战手与 AI 一选，用棋盘事实和搜索依据解释取舍。</p></article>
+      <article><span class="feature-mark">02 / FOLLOW</span><h2 data-i18n="feature2">看见后续变化</h2><p data-i18n="feature2Body">逐手播放应手与变化，同时查看胜率、目差怎样改变。</p></article>
+      <article><span class="feature-mark">03 / LEARN</span><h2 data-i18n="feature3">联系熟悉的棋理</h2><p data-i18n="feature3Body">参考尖顶、秀策尖、托退与芈氏飞刀入口，使用中文围棋术语。</p></article>
+    </section>
+    <section id="start" class="start" aria-labelledby="startTitle">
+      <div class="section-heading"><p class="eyebrow" data-i18n="startEyebrow">三步，开始复盘</p><h2 id="startTitle" data-i18n="startTitle">像安装普通软件一样。</h2></div>
+      <ol class="steps">
+        <li><span class="step-number">1</span><div><h3 data-i18n="step1">下载安装包</h3><p data-i18n="step1Body">点击上方绿色按钮，等待下载完成。</p></div></li>
+        <li><span class="step-number">2</span><div><h3 data-i18n="step2">完成安装</h3><p data-i18n="step2Body">打开下载的文件，选择语言，按向导完成安装。</p></div></li>
+        <li><span class="step-number">3</span><div><h3 data-i18n="step3">打开，体验讲解</h3><p data-i18n="step3Body">从桌面图标启动。首次安装可直接打开样例，点击“解释刚才一手”。</p></div></li>
+      </ol>
+    </section>
+    <section class="details" aria-label="Requirements and help">
+      <div><h2 data-i18n="requirements">运行环境</h2><p data-i18n="requirementsBody">Windows 10 / 11 64 位，需要支持 OpenCL 的显卡驱动。首次启动可能需要等待引擎调优。</p></div>
+      <div><h2 data-i18n="help">测试版说明</h2><p data-i18n="helpBody">当前安装包尚未数字签名，Windows 可能显示发布者未知。讲解用于学习与复盘；遇到问题时，请保留错误提示。</p><a href="https://github.com/k4ju1/katago-explainer/issues" data-i18n="feedback">反馈问题 ↗</a></div>
+    </section>
+  </main>
+  <footer class="footer wrap"><p data-i18n="footer">KataGo Explainer · 基于 KaTrain 与 KataGo 的独立围棋学习工具</p><div><a href="https://github.com/k4ju1/katago-explainer/releases/tag/v0.2.0-beta.2" data-i18n="release">版本说明</a><a href="https://github.com/k4ju1/katago-explainer" data-i18n="source">项目源码</a></div></footer>
+</body>
+</html>

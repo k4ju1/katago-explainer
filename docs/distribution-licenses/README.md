@@ -27,6 +27,8 @@ KaTrain 完整许可含图标署名和数字时钟字体的非商业用途条款
 | SHA2-LICENSE.txt | License header of [sha2.cpp](https://github.com/lightvector/KataGo/blob/v1.18.1/cpp/core/sha2.cpp) |
 | Python-LICENSE.txt | [CPython 3.11 license](https://github.com/python/cpython/blob/v3.11.9/LICENSE) |
 | Kivy-LICENSE.txt | [Kivy 2.3.0 license](https://github.com/kivy/kivy/blob/2.3.0/LICENSE) |
+| Inno-Setup-LICENSE.txt | [Inno Setup 6.4.3 license](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt) |
+| Simplified Chinese installer translation | [ChineseSimplified.isl at the same official tag](https://github.com/jrsoftware/issrc/blob/is-6_4_3/Files/Languages/Unofficial/ChineseSimplified.isl); translator credits are preserved in `packaging/windows/ChineseSimplified.isl`. |
 
 This is a provenance and notice collection, not a claim that all upstream
 components share one license. Original component terms continue to apply.

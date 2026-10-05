@@ -22,7 +22,12 @@ jobs:
         with:
           node-version: '22'
       - name: Check JavaScript syntax
-        run: node --check web/app.js
+        shell: pwsh
+        run: |
+          node --check web/app.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check download/app.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Compile Python sources
         run: python -m compileall -q explainer plugins scripts
       - name: Run GPU-free regression suite

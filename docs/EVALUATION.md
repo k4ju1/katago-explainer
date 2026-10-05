@@ -34,6 +34,17 @@ The portable-release branch adds packaging checks; see [distribution](DISTRIBUTI
 The portable beta adds ten packaging tests; all 168 tests passed locally,
 including source integrity, isolated configuration, provenance, cleanup and reproducibility.
 
+安装版 `0.2.0-beta.2` 再新增 10 项校验测试，本机完整回归 **178 项通过**。
+真实安装器的静默安装、重复安装和卸载检查通过：388 个安装文件的 SHA256 与清单一致，
+中文初始配置、桌面与开始菜单快捷方式正确；重复安装保留设置，卸载保留用户配置与自建棋谱。
+这项检查不包含安装向导或当前原生棋盘的人工视觉验收。
+
+The installer beta adds ten validation tests; all **178 tests passed locally**.
+The compiled installer passed a real silent install/update/uninstall check: 388 installed
+files matched their manifest hashes, Chinese configuration and both shortcuts were correct,
+updates preserved preferences, and uninstall retained configuration and a user-created SGF.
+This lifecycle check does not constitute visual acceptance of the wizard or current native board.
+
 ## Real engine / 真实引擎
 
 ```powershell

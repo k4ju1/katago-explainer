@@ -2,7 +2,7 @@
 
 KataGo and KaTrain are separate upstream projects. Their executables, models,
 fonts and icons are not committed to this source repository. The Windows
-portable release includes a verified copy of KaTrain's official folder build,
+installer and portable release include a verified copy of KaTrain's official folder build,
 with the project's plugin installed. Complete upstream notices accompany that
 release in `licenses/`; their sources are recorded in
 [distribution notices](docs/distribution-licenses/README.md). The generated wooden
@@ -10,9 +10,20 @@ board and stone assets in `plugins/katrain/` are reproduced by
 `scripts/build_skin_assets.py`.
 
 KataGo 与 KaTrain 是独立的上游项目，程序、模型、字体和图标不提交到源码仓库。
-Windows 便携发布包包含经校验的官方宿主文件夹版和本项目插件，完整第三方声明
+Windows 安装包与便携包包含经校验的官方宿主文件夹版和本项目插件，完整第三方声明
 随包保存在 `licenses/`，来源见上述说明。
 插件的木棋盘与棋子图片可通过 `scripts/build_skin_assets.py` 重新生成。
+
+The Windows installation wizard is compiled with **Inno Setup 6.4.3**.
+Its upstream license is retained in
+[Inno-Setup-LICENSE.txt](docs/distribution-licenses/Inno-Setup-LICENSE.txt).
+The Simplified Chinese wizard messages are from the official repository's
+[is-6_4_3 ChineseSimplified.isl](https://github.com/jrsoftware/issrc/blob/is-6_4_3/Files/Languages/Unofficial/ChineseSimplified.isl),
+copied to `packaging/windows/ChineseSimplified.isl` with the translator attribution intact.
+Inno Setup is a build tool and installer component; the Go analysis remains KataGo's.
+
+Windows 安装向导由 Inno Setup 6.4.3 编译，许可随发布包保留。简体中文向导来自
+上游对应版本的官方仓库，保留译者署名。安装器与围棋分析引擎分别记录来源。
 
 `tests/fixtures/katrain-1.20.0-gui.kv` is KaTrain v1.20.0's original layout,
 used to verify the version-pinned, reversible integration. It is covered by
